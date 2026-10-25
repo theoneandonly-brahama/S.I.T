@@ -18,16 +18,16 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Format check
-        run: npx --yes prettier@3.9.10 --check "**/*.{ts,tsx,js,jsx,json,md}"
+        run: pnpm --dir . run format:check
 
       - name: Lint
-        run: pnpm run lint
+        run: pnpm --dir . run lint
 
       - name: Type check
-        run: pnpm run typecheck
+        run: pnpm --dir . run typecheck
 
       - name: Run tests
-        run: pnpm run test
+        run: pnpm --dir . run test
 
       - name: Build
-        run: pnpm run build
+        run: pnpm --dir . run build
