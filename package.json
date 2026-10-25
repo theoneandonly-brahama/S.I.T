@@ -1,0 +1,29 @@
+{
+  "name": "sit-study-in-tunisia",
+  "version": "0.1.0",
+  "private": true,
+  "description": "S.I.T — Study In Tunisia",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@12.10.1",
+  "engines": {
+    "node": ">=22.0.0 <25.0.0"
+  },
+  "scripts": {
+    "check:toolchain": "node --version && pnpm --version",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "security:secrets": "gitleaks detect --verbose",
+    "security:audit": "pnpm audit",
+    "security:osv": "osv-scanner -r ."
+  },
+  "devDependencies": {
+    "turbo": "^2.4.4",
+    "prettier": "^3.5.3"
+  }
+}

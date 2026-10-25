@@ -1,0 +1,78 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.example.*
+!.env.*.example.*
+
+# Build output
+dist/
+build/
+coverage/
+.next/
+.expo/
+.turbo/
+out/
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+
+# Test and tooling artifacts
+playwright-report/
+test-results/
+.nyc_output/
+.nest/
+*.spdx.json
+*.tsbuildinfo
+
+# Local databases, uploads, and generated files
+*.sqlite
+*.sqlite3
+*.db
+uploads/
+generated/
+
+# IDE and operating-system files
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local certificates and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local overrides
+.envrc.local
+
+# Private AI-assistant workflow files — never publish
+# (owner-authorized exclusion of AI-identifiable files; see the
+# Mandatory Project Policy in AGENTS.md, section B)
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+opencode.json
+opencode.jsonc
+.opencode/
+.claude/
+.cursor/
+.aider*
+.windsurfrules
+.qwen/
+docs/development/
+
+# Evidence captures - never publish
+documentation/*
+
+# Build output
+apps/api/dist/
+apps/api/.turbo/
