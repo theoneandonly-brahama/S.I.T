@@ -25,17 +25,6 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Diagnose repository
-        run: |
-          echo "=== Working directory ==="
-          pwd
-          echo "=== Root package.json ==="
-          cat package.json
-          echo "=== Workspace configuration ==="
-          cat pnpm-workspace.yaml
-          echo "=== Available scripts ==="
-          pnpm run
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
