@@ -30,18 +30,46 @@ jobs:
 
       - name: Format check
         run: pnpm run format:check
+      - name: Format check artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: format-check-result
+          path: ./.prettierrc.json
 
       - name: Lint
         run: pnpm run lint
 
+      - name: Lint artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-result
+          path: apps/api/.eslintrc.json  
+
       - name: Type check
         run: pnpm run typecheck
+      - name: Type check artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-result
+          path: apps/api/tsconfig.json  
 
       - name: Run tests
         run: pnpm run test
+      - name: Test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-result
+          path: apps/api/jest.config.js  
 
       - name: Build
         run: pnpm run build
+
+      - name: Build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-result
+          path: apps/api/dist/
+
   security:
     runs-on: ubuntu-latest
     needs: [quality]
@@ -59,19 +87,37 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      
+      
       - name: Install gitleaks
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
-          chmod +x /usr/local/bin/gitleaks
+          chmod +x /usr/local/bin/gitleaks    
 
       - name: Secret detection (full history)
         run: gitleaks detect --verbose --source . --redact
+      - name: Gitleaks artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-results
+          path: .gitleaks-report.txt  
 
+      
+      
       - name: Install semgrep
         run: pip install semgrep
 
       - name: Static analysis
         run: semgrep --config=p/security-and-quality . --sarif --output semgrep.sarif || true
+
+      - name: Semgrep artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: semgrep.sarif
+
+
+
         
       - name: Install trivy
         run: |
@@ -88,5 +134,21 @@ jobs:
       - name: Image vulnerability scan
         run: trivy image --format json --output trivy-results.json sit-api:latest || true
 
+      - name: Trivy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.json  
+
       - name: SBOM inventory
         run: trivy image --format cyclonedx --output sbom.cdx.json sit-api:latest || true
+
+      - name: SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-results
+          path: sbom.cdx.json  
+
+      - name: Trivy summary
+        run: |
+          trivy image --format short sit-api:latest || true
