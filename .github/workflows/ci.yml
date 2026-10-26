@@ -30,20 +30,9 @@ jobs:
 
       - name: Format check
         run: pnpm run format:check
-      - name: Format check artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: format-check-result
-          path: .prettierrc.json
 
       - name: Lint
         run: pnpm run lint
-
-      - name: Lint artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lint-result
-          path: apps/api/.eslintrc.json  
 
       - name: Type check
         run: pnpm run typecheck
@@ -86,8 +75,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-
-      
       
       - name: Install gitleaks
         run: |
@@ -96,12 +83,6 @@ jobs:
 
       - name: Secret detection (full history)
         run: gitleaks detect --verbose --source . --redact
-      - name: Gitleaks artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: gitleaks-results
-          path: .gitleaks-report.txt  
-
       
       
       - name: Install semgrep
@@ -116,9 +97,6 @@ jobs:
           name: semgrep-results
           path: semgrep.sarif
 
-
-
-        
       - name: Install trivy
         run: |
           sudo apt-get update
