@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: format-check-result
-          path: ./.prettierrc.json
+          path: .prettierrc.json
 
       - name: Lint
         run: pnpm run lint
@@ -59,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-result
-          path: apps/api/jest.config.js  
+          path: apps/api/jest.config.cjs  
 
       - name: Build
         run: pnpm run build
@@ -108,7 +108,7 @@ jobs:
         run: pip install semgrep
 
       - name: Static analysis
-        run: semgrep --config=p/security-and-quality . --sarif --output semgrep.sarif || true
+        run: semgrep --config auto . --sarif --output semgrep.sarif 
 
       - name: Semgrep artifact
         uses: actions/upload-artifact@v4
@@ -132,7 +132,7 @@ jobs:
         run: docker build -f apps/api/Dockerfile -t sit-api:latest .
 
       - name: Image vulnerability scan
-        run: trivy image --format json --output trivy-results.json sit-api:latest || true
+        run: trivy image --format json --output trivy-results.json sit-api:latest 
 
       - name: Trivy artifact
         uses: actions/upload-artifact@v4
@@ -141,7 +141,7 @@ jobs:
           path: trivy-results.json  
 
       - name: SBOM inventory
-        run: trivy image --format cyclonedx --output sbom.cdx.json sit-api:latest || true
+        run: trivy image --format cyclonedx --output sbom.cdx.json sit-api:latest 
 
       - name: SBOM artifact
         uses: actions/upload-artifact@v4
