@@ -10,7 +10,7 @@
     "dev": "nest start --watch",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests && exit 1"
   },
   "devDependencies": {
     "@nestjs/core": "^10.0.0",
