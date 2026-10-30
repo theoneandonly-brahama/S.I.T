@@ -236,6 +236,7 @@ jobs:
         run: pip install semgrep==1.121.0
 
       - name: Gate 5b — Static analysis (OWASP)
+        id: gate5b 
         run: |
           semgrep \
             --config p/owasp-top-ten \
@@ -245,15 +246,14 @@ jobs:
             --error \
             . 2>&1 | tee semgrep.log
 
-      - name: Upload Semgrep SARIF to GitHub Security tab
-        id: sarif 
+      - name: Upload Semgrep SARIF to Security tab
+        id: sarif
         if: always()
-        continue-on-error: true  
-        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4   # v3 → v4
         with:
           sarif_file: semgrep.sarif
           category: semgrep
-
       - name: Upload Semgrep artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -274,20 +274,20 @@ jobs:
           chmod +x /usr/local/bin/trivy
 
       - name: Build image for scanning
-        if: always()  
+        if: always()
         run: docker build -f apps/api/Dockerfile -t sit-api:scan .
 
       - name: Gate 5c — Image vulnerability scan (blocking)
-        id: gate5c 
+        id: gate5c
         if: always()
-        run: |
-          trivy image \
-            --severity HIGH,CRITICAL \
-            --ignore-unfixed \
-            --exit-code 1 \
-            --format json \
-            --output trivy-results.json \
-            sit-api:scan 2>&1 | tee trivy.log
+        uses: aquasecurity/trivy-action@0.36.0   # pin to the latest stable major
+        with:
+          image-ref: 'sit-api:scan'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'
+          format: 'json'
+          output: 'trivy-results.json'
 
       - name: Upload Trivy report
         if: always()
@@ -296,18 +296,16 @@ jobs:
           name: gate-5c-trivy-report
           path: |
             trivy-results.json
-            trivy.log
           if-no-files-found: warn
 
-      # ----- Gate 5d: SBOM (supply-chain inventory, non-blocking by design)
       - name: Gate 5d — SBOM generation
-        id: gate5d   
-        if: always()  
-        run: |
-          trivy image \
-            --format cyclonedx \
-            --output sbom.cdx.json \
-            sit-api:scan 2>&1 | tee sbom.log
+        id: gate5d
+        if: always()
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: 'sit-api:scan'
+          format: 'cyclonedx'
+          output: 'sbom.cdx.json'
 
       - name: Upload SBOM
         if: always()
@@ -316,7 +314,6 @@ jobs:
           name: gate-5d-sbom
           path: |
             sbom.cdx.json
-            sbom.log
           if-no-files-found: warn
       - name: Summary — Security gates           # ← NEW: fills the run Summary tab
         if: always()
