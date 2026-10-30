@@ -27,7 +27,8 @@ class HealthModule {}
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(HealthModule);
-  await app.listen(3000, '0.0.0.0');
+  const port = Number(process.env.PORT) || 3000;
+  await app.listen(port, '0.0.0.0');
 }
 
 bootstrap();

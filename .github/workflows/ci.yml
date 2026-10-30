@@ -103,11 +103,9 @@ jobs:
           docker build \
             -f apps/api/Dockerfile \
             -t sit-api:${{ github.sha }} \
+            --iidfile image-digest.txt \
             --label "org.opencontainers.image.revision=${{ github.sha }}" \
             . 2>&1 | tee build.log
-
-      - name: Capture image digest
-        run: docker inspect --format='{{index .RepoDigests 0}}' sit-api:${{ github.sha }} | tee image-digest.txt
 
       - name: Upload gate 6 report
         if: always()
