@@ -266,6 +266,7 @@ jobs:
 
       # ----- Gate 5c: SCA + image scan (blocking on HIGH/CRITICAL) --------
       - name: Install Trivy (pinned)
+        if: always()  
         run: |
           TRIVY_VERSION=0.69.0
           curl -sSfL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
@@ -273,6 +274,7 @@ jobs:
           chmod +x /usr/local/bin/trivy
 
       - name: Build image for scanning
+        if: always()  
         run: docker build -f apps/api/Dockerfile -t sit-api:scan .
 
       - name: Gate 5c — Image vulnerability scan (blocking)
