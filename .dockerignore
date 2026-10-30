@@ -1,0 +1,29 @@
+# Version control
+.git
+.gitignore
+.github
+*.md
+
+# Node / workspace artifacts
+node_modules
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/coverage
+pnpm-lock.yaml.bak
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editor and OS noise
+.vscode
+.idea
+.DS_Store
+
+# Docker and local compose overrides
+compose*.override.yaml
+Dockerfile*
+.dockerignore

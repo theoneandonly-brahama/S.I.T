@@ -76,3 +76,11 @@ documentation/*
 # Build output
 apps/api/dist/
 apps/api/.turbo/
+
+# Local development environment — not part of the project
+.devcontainer/
+.vscode/
+.editorconfig
+.npmrc
+.nvmrc
+.gitattributes
