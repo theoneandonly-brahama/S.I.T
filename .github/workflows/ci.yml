@@ -46,6 +46,7 @@ jobs:
 
         # _____ Gate 1: Formatting______________________________________________________
       - name: Gate 1 — Format check
+        id: gate1 
         run: pnpm run format:check 2>&1 | tee format-check.log
 
       - name: Upload gate 1 report
@@ -58,6 +59,7 @@ jobs:
 
       # ----- Gate 2: Lint --------------------------------------------------
       - name: Gate 2 — Lint
+        id: gate2
         run: pnpm run lint 2>&1 | tee lint.log
 
       - name: Upload gate 2 report
@@ -70,6 +72,7 @@ jobs:
 
       # ----- Gate 3: Type contract ----------------------------------------
       - name: Gate 3 — Type check
+        id: gate3 
         run: pnpm run typecheck 2>&1 | tee typecheck.log
 
       - name: Upload gate 3 report
@@ -82,6 +85,7 @@ jobs:
 
       # ----- Gate 4: Tests (no tests yet; the gate is wired, not active) ---
       - name: Gate 4 — Tests (dormant until tests exist)
+        id: gate4
         run: |
           if find apps packages -type f \( -name "*.spec.ts" -o -name "*.test.ts" \) 2>/dev/null | grep -q .; then
             pnpm run test 2>&1 | tee test.log
@@ -99,6 +103,7 @@ jobs:
 
       # ----- Gate 6: Build -------------------------------------------------
       - name: Gate 6 — Build API image
+        id: gate6 
         run: |
           docker build \
             -f apps/api/Dockerfile \
@@ -119,6 +124,7 @@ jobs:
 
       # ----- Gate 8: Deployment checks ------------------------------------
       - name: Gate 8 — Compose manifest validation
+        id: gate8 
         run: |
           docker compose -f infrastructure/docker-compose.yml config -q
           docker compose -f infrastructure/docker-compose.yml config --no-interpolate > compose-rendered.yaml
@@ -271,6 +277,7 @@ jobs:
 
       - name: Gate 5c — Image vulnerability scan (blocking)
         id: gate5c 
+        if: always()
         run: |
           trivy image \
             --severity HIGH,CRITICAL \
@@ -292,7 +299,8 @@ jobs:
 
       # ----- Gate 5d: SBOM (supply-chain inventory, non-blocking by design)
       - name: Gate 5d — SBOM generation
-        id: gate5d     
+        id: gate5d   
+        if: always()  
         run: |
           trivy image \
             --format cyclonedx \
