@@ -265,14 +265,6 @@ jobs:
           if-no-files-found: warn
 
       # ----- Gate 5c: SCA + image scan (blocking on HIGH/CRITICAL) --------
-      - name: Install Trivy (pinned)
-        if: always()  
-        run: |
-          TRIVY_VERSION=0.69.0
-          curl -sSfL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
-            | tar -xz -C /usr/local/bin trivy
-          chmod +x /usr/local/bin/trivy
-
       - name: Build image for scanning
         if: always()
         run: docker build -f apps/api/Dockerfile -t sit-api:scan .
@@ -280,7 +272,7 @@ jobs:
       - name: Gate 5c — Image vulnerability scan (blocking)
         id: gate5c
         if: always()
-        uses: aquasecurity/trivy-action@0.36.0   # pin to the latest stable major
+        uses: aquasecurity/trivy-action@v0.36.0   # ← v-prefixed tag
         with:
           image-ref: 'sit-api:scan'
           severity: 'HIGH,CRITICAL'
@@ -294,14 +286,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gate-5c-trivy-report
-          path: |
-            trivy-results.json
+          path: trivy-results.json
           if-no-files-found: warn
 
       - name: Gate 5d — SBOM generation
         id: gate5d
         if: always()
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0   # ← same tag
         with:
           image-ref: 'sit-api:scan'
           format: 'cyclonedx'
@@ -312,8 +303,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gate-5d-sbom
-          path: |
-            sbom.cdx.json
+          path: sbom.cdx.json
           if-no-files-found: warn
       - name: Summary — Security gates           # ← NEW: fills the run Summary tab
         if: always()
