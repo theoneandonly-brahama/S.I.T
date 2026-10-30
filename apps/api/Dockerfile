@@ -41,7 +41,7 @@ WORKDIR /app
 COPY --from=deps /app/ ./
 COPY --from=deps /root/.local/share/pnpm/store ./pnpm-store
 
-RUN pnpm --store-dir ./pnpm-store --filter @sit/api --prod deploy /out
+RUN pnpm --store-dir ./pnpm-store --filter @sit/api --prod deploy --legacy /out
 
 
 # Stage 4 - Runtime (non-root)

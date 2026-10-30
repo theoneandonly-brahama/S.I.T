@@ -81,12 +81,12 @@ jobs:
           if-no-files-found: warn
 
       # ----- Gate 4: Tests (no tests yet; the gate is wired, not active) ---
-      - name: Gate 4 — Tests
+      - name: Gate 4 — Tests (dormant until tests exist)
         run: |
-          if pnpm run test --if-present; then
-            echo "test suite executed" | tee test.log
+          if find apps packages -type f \( -name "*.spec.ts" -o -name "*.test.ts" \) 2>/dev/null | grep -q .; then
+            pnpm run test 2>&1 | tee test.log
           else
-            echo "no test script defined, this gate is wired but not active" | tee test.log
+            echo "no test files exist yet; gate 4 is wired but dormant" | tee test.log
           fi
 
       - name: Upload gate 4 report
