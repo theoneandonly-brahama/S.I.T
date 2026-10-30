@@ -289,6 +289,28 @@ jobs:
           path: trivy-results.json
           if-no-files-found: warn
 
+      - name: Generate Trivy Report for Summary
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: 'sit-api:scan'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '0'
+          output: 'trivy-results.txt' # Save to a file
+
+      - name: Publish Trivy Report to Step Summary
+        if: always()
+        run: |
+          echo "## 🛡️ Trivy Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "<details><summary>Click to expand the full report</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+
       - name: Gate 5d — SBOM generation
         id: gate5d
         if: always()
