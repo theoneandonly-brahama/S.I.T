@@ -159,6 +159,22 @@ jobs:
             compose-rendered.yaml
           if-no-files-found: warn
 
+      - name: Summary — Quality gates
+        if: always()
+        run: |
+          {
+            echo "## Quality & Build — Gate Results"
+            echo ""
+            echo "| Step | Outcome |"
+            echo "|------|---------|"
+            echo "| 1 Format | \`${{ steps.gate1.outcome }}\` |"
+            echo "| 2 Lint | \`${{ steps.gate2.outcome }}\` |"
+            echo "| 3 Typecheck | \`${{ steps.gate3.outcome }}\` |"
+            echo "| 4 Tests (dormant) | \`${{ steps.gate4.outcome }}\` |"
+            echo "| 6 Build | \`${{ steps.gate6.outcome }}\` |"
+            echo "| 8 Compose | \`${{ steps.gate8.outcome }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   security:
     name: Security & Supply Chain
     runs-on: ubuntu-latest
@@ -167,6 +183,10 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      actions: read 
+    defaults: 
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
 
     steps:
       - name: Checkout repository
@@ -190,6 +210,7 @@ jobs:
 
       # ----- Gate 5a: Secret detection (blocking) -------------------------
       - name: Gate 5a — Secret detection
+        id: gate5a
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz \
             | tar -xz -C /usr/local/bin gitleaks
@@ -219,7 +240,9 @@ jobs:
             . 2>&1 | tee semgrep.log
 
       - name: Upload Semgrep SARIF to GitHub Security tab
+        id: sarif 
         if: always()
+        continue-on-error: true  
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
@@ -247,6 +270,7 @@ jobs:
         run: docker build -f apps/api/Dockerfile -t sit-api:scan .
 
       - name: Gate 5c — Image vulnerability scan (blocking)
+        id: gate5c 
         run: |
           trivy image \
             --severity HIGH,CRITICAL \
@@ -268,6 +292,7 @@ jobs:
 
       # ----- Gate 5d: SBOM (supply-chain inventory, non-blocking by design)
       - name: Gate 5d — SBOM generation
+        id: gate5d     
         run: |
           trivy image \
             --format cyclonedx \
@@ -283,3 +308,19 @@ jobs:
             sbom.cdx.json
             sbom.log
           if-no-files-found: warn
+      - name: Summary — Security gates           # ← NEW: fills the run Summary tab
+        if: always()
+        run: |
+          {
+            echo "## Security & Supply Chain — Gate Results"
+            echo ""
+            echo "| Step | Outcome |"
+            echo "|------|---------|"
+            echo "| 5a Gitleaks | \`${{ steps.gate5a.outcome }}\` |"
+            echo "| 5b Semgrep | \`${{ steps.gate5b.outcome }}\` |"
+            echo "| 5b SARIF ingest | \`${{ steps.sarif.outcome }}\` |"
+            echo "| 5c Trivy image scan | \`${{ steps.gate5c.outcome }}\` |"
+            echo "| 5d SBOM inventory | \`${{ steps.gate5d.outcome }}\` |"
+            echo ""
+            echo "Artifacts are downloadable from the run's **Artifacts** section."
+          } >> "$GITHUB_STEP_SUMMARY"
