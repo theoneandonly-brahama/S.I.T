@@ -46,7 +46,7 @@ jobs:
 
         # _____ Gate 1: Formatting______________________________________________________
       - name: Gate 1 — Format check
-        id: gate1 
+        id: gate1
         run: pnpm run format:check 2>&1 | tee format-check.log
 
       - name: Upload gate 1 report
@@ -72,7 +72,7 @@ jobs:
 
       # ----- Gate 3: Type contract ----------------------------------------
       - name: Gate 3 — Type check
-        id: gate3 
+        id: gate3
         run: pnpm run typecheck 2>&1 | tee typecheck.log
 
       - name: Upload gate 3 report
@@ -103,7 +103,7 @@ jobs:
 
       # ----- Gate 6: Build -------------------------------------------------
       - name: Gate 6 — Build API image
-        id: gate6 
+        id: gate6
         run: |
           docker build \
             -f apps/api/Dockerfile \
@@ -124,7 +124,7 @@ jobs:
 
       # ----- Gate 8: Deployment checks ------------------------------------
       - name: Gate 8 — Compose manifest validation
-        id: gate8 
+        id: gate8
         run: |
           docker compose -f infrastructure/docker-compose.yml config -q
           docker compose -f infrastructure/docker-compose.yml config --no-interpolate > compose-rendered.yaml
@@ -181,6 +181,37 @@ jobs:
             echo "| 8 Compose | \`${{ steps.gate8.outcome }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # ── NEW: collapsible per-gate content, same pattern as the Trivy block ──
+      - name: Publish quality gate logs to summary
+        if: always()
+        run: |
+          publish() {
+            title="$1"; file="$2"; max="${3:-200}"
+            [ -s "$file" ] || return 0
+            total=$(wc -l < "$file")
+            {
+              echo ""
+              echo "<details><summary>${title} — ${total} lines</summary>"
+              echo ""
+              echo '```'
+              if [ "$total" -le "$max" ]; then
+                cat "$file"
+              else
+                head -n $((max / 2)) "$file"
+                echo "... $((total - max)) lines omitted ..."
+                tail -n $((max / 2)) "$file"
+              fi
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+          publish "Gate 1 — Format" format-check.log
+          publish "Gate 2 — Lint" lint.log
+          publish "Gate 3 — Typecheck" typecheck.log
+          publish "Gate 4 — Tests" test.log
+          publish "Gate 6 — Build" build.log 300
+          publish "Gate 8 — Compose" gate-8.log
+
   security:
     name: Security & Supply Chain
     runs-on: ubuntu-latest
@@ -189,8 +220,8 @@ jobs:
     permissions:
       contents: read
       security-events: write
-      actions: read 
-    defaults: 
+      actions: read
+    defaults:
       run:
         shell: bash --noprofile --norc -euo pipefail {0}
 
@@ -236,7 +267,7 @@ jobs:
         run: pip install semgrep==1.121.0
 
       - name: Gate 5b — Static analysis (OWASP)
-        id: gate5b 
+        id: gate5b
         run: |
           semgrep \
             --config p/owasp-top-ten \
@@ -327,7 +358,8 @@ jobs:
           name: gate-5d-sbom
           path: sbom.cdx.json
           if-no-files-found: warn
-      - name: Summary — Security gates           # ← NEW: fills the run Summary tab
+
+      - name: Summary — Security gates           # ← outcome table (unchanged)
         if: always()
         run: |
           {
@@ -343,3 +375,45 @@ jobs:
             echo ""
             echo "Artifacts are downloadable from the run's **Artifacts** section."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── NEW: collapsible per-gate content for 5a / 5b / 5d ──
+      # Trivy already publishes its own content above, so it is skipped here.
+      - name: Publish security gate logs to summary
+        if: always()
+        run: |
+          publish() {
+            title="$1"; file="$2"; max="${3:-200}"
+            [ -s "$file" ] || return 0
+            total=$(wc -l < "$file")
+            {
+              echo ""
+              echo "<details><summary>${title} — ${total} lines</summary>"
+              echo ""
+              echo '```'
+              if [ "$total" -le "$max" ]; then
+                cat "$file"
+              else
+                head -n $((max / 2)) "$file"
+                echo "... $((total - max)) lines omitted ..."
+                tail -n $((max / 2)) "$file"
+              fi
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+          publish "Gate 5a — Gitleaks" gitleaks.log
+          publish "Gate 5b — Semgrep" semgrep.log 300
+
+          # SBOM is JSON, not a log — show size + first lines to prove it exists
+          if [ -s sbom.cdx.json ]; then
+            {
+              echo ""
+              echo "<details><summary>Gate 5d — SBOM (CycloneDX) — $(wc -c < sbom.cdx.json) bytes</summary>"
+              echo ""
+              echo '```json'
+              head -n 40 sbom.cdx.json
+              echo '... (truncated)'
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
