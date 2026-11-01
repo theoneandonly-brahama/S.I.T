@@ -1,16 +1,22 @@
 {
-  "name": "contract",
+  "name": "@sit/contract",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"No tests for contract package\" && exit 0"
+    "test": "echo \"No tests for contract package\" && exit 0",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "devDependencies": {
-    "typescript": "^7.0.2"
+    "typescript": "^5.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.57.1"
   }
 }
