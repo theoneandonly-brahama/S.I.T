@@ -25,6 +25,7 @@ out/
 logs/
 tmp/
 temp/
+pipeline-inspection.txt
 
 # Test and tooling artifacts
 playwright-report/
