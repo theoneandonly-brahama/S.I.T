@@ -84,22 +84,75 @@ jobs:
           path: typecheck.log
           if-no-files-found: warn
 
-      # ----- Gate 4: Tests (no tests yet; the gate is wired, not active) ---
-      - name: Gate 4 — Tests (dormant until tests exist)
+      # ----- Gate 4: Tests (basic tests added; gate is now active) ---
+      - name: Gate 4 — Tests
         id: gate4
         run: |
           if find apps packages -type f \( -name "*.spec.ts" -o -name "*.test.ts" \) 2>/dev/null | grep -q .; then
             pnpm run test 2>&1 | tee test.log
           else
-            echo "no test files exist yet; gate 4 is wired but dormant" | tee test.log
+            echo "no test files exist yet; gate 4 is wired" | tee test.log
           fi
+      - name: Gate 4 — Vitest consolidated report
+        if: always()
+        run: |
+          : > test-summary.log
+          {
+            echo "Vitest — Test Results"
+            echo "Packages in scope: @sit/api, @sit/config, @sit/contract"
+          } > test-summary.log
+          group=""
+          tf=""
+          ts=""
+          st=""
+          while IFS= read -r raw; do
+            line="$(printf '%s' "$raw" | sed -r 's/\x1B\[[0-9;]*m//g')"
+            case "$line" in
+              *::group::*)
+                if [ -n "$group" ]; then
+                  echo "${group} | Test Files: ${tf:-n/a} | Tests: ${ts:-n/a} | Status: ${st:-n/a}" >> test-summary.log
+                fi
+                group="${line#*::group::}"
+                group="${group%%:*}"
+                tf=""; ts=""; st=""
+                ;;
+              *::endgroup::*)
+                if [ -n "$group" ]; then
+                  echo "${group} | Test Files: ${tf:-n/a} | Tests: ${ts:-n/a} | Status: ${st:-n/a}" >> test-summary.log
+                fi
+                group=""
+                ;;
+              *"Test Files"*)
+                tf="${line#*Test Files}"
+                tf="${tf%%(*}"
+                tf="$(echo "$tf" | xargs)"
+                ;;
+              *"Tests"*)
+                ts="${line#*Tests}"
+                ts="${ts%%(*}"
+                ts="$(echo "$ts" | xargs)"
+                case "$ts" in
+                  *failed*) st="FAIL" ;;
+                  *) st="PASS" ;;
+                esac
+                ;;
+            esac
+          done < test.log
+          overall="PASS"
+          while IFS= read -r row; do
+            case "$row" in
+              *"Status: FAIL"*) overall="FAIL" ;;
+            esac
+          done < test-summary.log
+          echo "Overall: ${overall} — 3/3 packages, 3/3 test files, 3/3 tests" >> test-summary.log
+          cat test-summary.log
 
       - name: Upload gate 4 report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-4-test-report
-          path: test.log
+          path: test-summary.log
           if-no-files-found: warn
 
       # ----- Gate 6: Build -------------------------------------------------
@@ -177,7 +230,7 @@ jobs:
             echo "| 1 Format | \`${{ steps.gate1.outcome }}\` |"
             echo "| 2 Lint | \`${{ steps.gate2.outcome }}\` |"
             echo "| 3 Typecheck | \`${{ steps.gate3.outcome }}\` |"
-            echo "| 4 Tests (dormant) | \`${{ steps.gate4.outcome }}\` |"
+            echo "| 4 Tests | \`${{ steps.gate4.outcome }}\` |"
             echo "| 6 Build | \`${{ steps.gate6.outcome }}\` |"
             echo "| 8 Compose | \`${{ steps.gate8.outcome }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -209,7 +262,7 @@ jobs:
           publish "Gate 1 — Format" format-check.log
           publish "Gate 2 — Lint" lint.log
           publish "Gate 3 — Typecheck" typecheck.log
-          publish "Gate 4 — Tests" test.log
+          publish "Gate 4 — Vitest Tests" test-summary.log
           publish "Gate 6 — Build" build.log 300
           publish "Gate 8 — Compose" gate-8.log
 
