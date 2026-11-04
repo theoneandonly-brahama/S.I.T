@@ -91,7 +91,7 @@ jobs:
           if find apps packages -type f \( -name "*.spec.ts" -o -name "*.test.ts" \) 2>/dev/null | grep -q .; then
             pnpm run test > test.log 2>&1
           else
-            echo "no test files exist yet; gate 4 is wired" | tee test.log
+            echo "no test files exist yet; gate 4 is wired" > test.log
           fi
       - name: Gate 4 — Vitest consolidated report
         if: always()
