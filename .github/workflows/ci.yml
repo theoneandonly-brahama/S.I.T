@@ -25,6 +25,9 @@ jobs:
     name: Quality & Build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      NO_COLOR: "1"
+      FORCE_COLOR: "0"
     defaults:
       run:
         shell: bash --noprofile --norc -euo pipefail {0}
@@ -93,20 +96,7 @@ jobs:
           else
             echo "no test files exist yet; gate 4 is wired" > test.log
           fi
-      - name: Gate 4 — Vitest consolidated report
-        if: always()
-        run: |
-          # Vitest in workspace mode prints one clean summary.
-          # We just make it visible at the top of the run summary page
-          # for at-a-glance reading, before the collapsible blocks below.
-          {
-            echo "### Vitest Test Results"
-            echo ""
-            echo '```'
-            cat test.log
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
+      
       - name: Upload gate 4 report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
@@ -205,17 +195,18 @@ jobs:
             title="$1"; file="$2"; max="${3:-200}"
             [ -s "$file" ] || return 0
             total=$(wc -l < "$file")
+            strip_ansi() { sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g'; }
             {
               echo ""
               echo "<details><summary>${title} — ${total} lines</summary>"
               echo ""
               echo '```'
               if [ "$total" -le "$max" ]; then
-                cat "$file"
+                strip_ansi < "$file"
               else
-                head -n $((max / 2)) "$file"
+                head -n $((max / 2)) "$file" | strip_ansi
                 echo "... $((total - max)) lines omitted ..."
-                tail -n $((max / 2)) "$file"
+                tail -n $((max / 2)) "$file" | strip_ansi
               fi
               echo '```'
               echo "</details>"
