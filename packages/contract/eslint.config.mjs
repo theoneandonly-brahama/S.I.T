@@ -17,5 +17,14 @@ export default tseslint.config(
         tsconfigRootDir: __dirname,
       },
     },
+  },
+  {
+    files: ['src/**/*.spec.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        tsconfigRootDir: __dirname,
+      },
+    },
   }
 );

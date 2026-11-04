@@ -1,0 +1,15 @@
+# S.I.T — Semgrep security ruleset (triage increment boilerplate).
+#
+# The blocking Gate 5b currently runs the public registry configurations:
+#   semgrep --config p/owasp-top-ten --config p/security-audit
+#
+# Local triage rules are authored here as findings are triaged during the
+# Sprint 1 close triage increment and refined during Sprint 2 (E9-US3).
+
+rules:
+  - id: sit-no-console-log
+    patterns:
+      - pattern: console.log($X)
+    message: Console logging detected in a production code path.
+    severity: WARNING
+    languages: [javascript, typescript]

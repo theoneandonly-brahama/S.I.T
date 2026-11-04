@@ -13,12 +13,13 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "test": "echo \"@sit/config: no tests\" && exit 0"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.14.0",
     "typescript": "^5.0.0",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
   }
 }

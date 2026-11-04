@@ -1,0 +1,4 @@
+# Trivy scan exclusions (triage increment boilerplate).
+# Scanner-level ignores; each entry requires a recorded triage decision.
+
+ignore: []

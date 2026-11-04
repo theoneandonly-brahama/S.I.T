@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  NODE_VERSION: 22
+  NODE_VERSION: 22.23.3
 
 #________________________________________________________________________________________
 
@@ -269,6 +269,7 @@ jobs:
         id: gate5b
         run: |
           semgrep \
+            --config security/semgrep.yml \
             --config p/owasp-top-ten \
             --config p/security-audit \
             --sarif \

@@ -1,0 +1,8 @@
+# Semgrep scan scope (triage increment boilerplate).
+# Paths excluded from scanning; each exclusion is a candidate triage decision.
+
+**/dist/
+**/node_modules/
+**/coverage/
+**/playwright-report/
+**/test-results/
