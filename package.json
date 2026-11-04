@@ -14,7 +14,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "test": "vitest run",
+    "test:turbo": "turbo run test",
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "prettier": "^3.5.3",
-    "turbo": "2.11.10"
+    "turbo": "2.11.10",
+    "vitest": "^5.1.0"
   }
 }

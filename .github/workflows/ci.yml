@@ -89,94 +89,30 @@ jobs:
         id: gate4
         run: |
           if find apps packages -type f \( -name "*.spec.ts" -o -name "*.test.ts" \) 2>/dev/null | grep -q .; then
-            pnpm run test > test.log 2>&1
+            pnpm run test 2>&1 | tee test.log
           else
             echo "no test files exist yet; gate 4 is wired" > test.log
           fi
       - name: Gate 4 — Vitest consolidated report
         if: always()
         run: |
-          # Dynamically discover workspace packages that own test files
-          scope=""
-          pkg_count=0
-          test_files_total=0
-          tests_total=0
-          for pkg_dir in apps/* packages/*; do
-            [ -d "$pkg_dir" ] || continue
-            if ! find "$pkg_dir" -type f \( -name "*.spec.ts" -o -name "*.test.ts" \) 2>/dev/null | grep -q .; then
-              continue
-            fi
-            pkg_name="$(grep -m1 '"name"' "$pkg_dir/package.json" 2>/dev/null | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)"
-            pkg_name="${pkg_name:-$(basename "$pkg_dir")}"
-            if [ -n "$scope" ]; then scope="${scope}, ${pkg_name}"; else scope="${pkg_name}"; fi
-            pkg_count=$((pkg_count + 1))
-          done
-
-          : > test-summary.log
+          # Vitest in workspace mode prints one clean summary.
+          # We just make it visible at the top of the run summary page
+          # for at-a-glance reading, before the collapsible blocks below.
           {
-            echo "Vitest — Test Results"
-            echo "Packages in scope: ${scope}"
-          } > test-summary.log
-          group=""
-          tf=""
-          ts=""
-          st=""
-          while IFS= read -r raw; do
-            line="$(printf '%s' "$raw" | sed -r 's/\x1B\[[0-9;]*m//g')"
-            case "$line" in
-              *::group::*)
-                if [ -n "$group" ]; then
-                  echo "${group} | Test Files: ${tf:-n/a} | Tests: ${ts:-n/a} | Status: ${st:-n/a}" >> test-summary.log
-                  nf="$(printf '%s' "$tf" | grep -oE '[0-9]+' | head -n1 || true)"; nf="${nf:-0}"
-                  nt="$(printf '%s' "$ts" | grep -oE '[0-9]+' | head -n1 || true)"; nt="${nt:-0}"
-                  test_files_total=$((test_files_total + nf))
-                  tests_total=$((tests_total + nt))
-                fi
-                group="${line#*::group::}"
-                group="${group%%:*}"
-                tf=""; ts=""; st=""
-                ;;
-              *::endgroup::*)
-                if [ -n "$group" ]; then
-                  echo "${group} | Test Files: ${tf:-n/a} | Tests: ${ts:-n/a} | Status: ${st:-n/a}" >> test-summary.log
-                  nf="$(printf '%s' "$tf" | grep -oE '[0-9]+' | head -n1 || true)"; nf="${nf:-0}"
-                  nt="$(printf '%s' "$ts" | grep -oE '[0-9]+' | head -n1 || true)"; nt="${nt:-0}"
-                  test_files_total=$((test_files_total + nf))
-                  tests_total=$((tests_total + nt))
-                fi
-                group=""
-                ;;
-              *"Test Files"*)
-                tf="${line#*Test Files}"
-                tf="${tf%%(*}"
-                tf="$(echo "$tf" | xargs)"
-                ;;
-              *"Tests"*)
-                ts="${line#*Tests}"
-                ts="${ts%%(*}"
-                ts="$(echo "$ts" | xargs)"
-                case "$ts" in
-                  *failed*) st="FAIL" ;;
-                  *) st="PASS" ;;
-                esac
-                ;;
-            esac
-          done < test.log
-          overall="PASS"
-          while IFS= read -r row; do
-            case "$row" in
-              *"Status: FAIL"*) overall="FAIL" ;;
-            esac
-          done < test-summary.log
-          echo "Overall: ${overall} — ${pkg_count}/${pkg_count} packages, ${test_files_total}/${test_files_total} test files, ${tests_total}/${tests_total} tests" >> test-summary.log
-          cat test-summary.log
+            echo "### Vitest Test Results"
+            echo ""
+            echo '```'
+            cat test.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload gate 4 report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-4-test-report
-          path: test-summary.log
+          path: test.log
           if-no-files-found: warn
 
       # ----- Gate 6: Build -------------------------------------------------
@@ -288,7 +224,7 @@ jobs:
           publish "Gate 1 — Format" format-check.log
           publish "Gate 2 — Lint" lint.log
           publish "Gate 3 — Typecheck" typecheck.log
-          publish "Gate 4 — Vitest Tests" test-summary.log
+          publish "Gate 4 — Vitest Tests" test.log
           publish "Gate 6 — Build" build.log 300
           publish "Gate 8 — Compose" gate-8.log
 
