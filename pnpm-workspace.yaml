@@ -5,7 +5,7 @@ packages:
 blockExoticSubdeps: true
 minimumReleaseAge: 10080
 trustPolicy: no-downgrade
-trustPolicyIgnoreAfter: 10080
+trustPolicyIgnoreAfter: 1440 
 
 overrides:
   "body-parser@<1.20.9": "1.20.9"
