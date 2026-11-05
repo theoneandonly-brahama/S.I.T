@@ -2,6 +2,20 @@ packages:
   - "apps/*"
   - "packages/*"
 
+blockExoticSubdeps: true
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 10080
+
+overrides:
+  "body-parser@<1.20.9": "1.20.9"
+  "multer@<2.5.0": "2.5.0"
+  "brace-expansion@<2.1.6": "2.1.6"
+  "ip-address@<10.3.1": "10.3.1"
+  "pacote@<21.5.1": "21.5.1"
+  "picomatch@<4.0.4": "4.0.4"
+  "sigstore@<4.1.1": "4.1.1"
+
 allowBuilds:
   '@nestjs/core': false
   '@scarf/scarf': true

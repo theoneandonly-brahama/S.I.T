@@ -74,6 +74,8 @@ docs/development/
 
 # Evidence captures - never publish
 documentation/*
+trivy-results.json
+trivy-resultsnew.json
 
 # Build output
 apps/api/dist/

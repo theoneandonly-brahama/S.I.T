@@ -15,9 +15,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@nestjs/cli": "^10.0.0",
-    "@nestjs/common": "^10.0.0",
-    "@nestjs/core": "^10.0.0",
-    "@nestjs/platform-express": "^10.0.0",
+
     "@nestjs/testing": "^10.0.0",
     "@types/node": "^22.0.0",
     "eslint": "^10.14.0",
@@ -28,6 +26,9 @@
   },
   "dependencies": {
     "reflect-metadata": "^0.1.0",
-    "rxjs": "^7.0.0"
+    "rxjs": "^7.0.0",
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/platform-express": "^10.0.0"
   }
 }

@@ -8,6 +8,7 @@ RUN corepack enable
 COPY pnpm-lock.yaml ./pnpm-lock.yaml
 COPY pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY package.json ./package.json
+COPY .npmrc ./.npmrc
 
 #----package manifests----
 COPY apps/api/package.json ./apps/api/package.json
@@ -48,6 +49,8 @@ RUN pnpm --store-dir ./pnpm-store --filter @sit/api --prod deploy --legacy /out
 FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nestjs
