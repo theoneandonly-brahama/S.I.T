@@ -3,9 +3,30 @@ packages:
   - "packages/*"
 
 blockExoticSubdeps: true
-minimumReleaseAge: 0
+minimumReleaseAge: 10080
 trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 10080
+
+minimumReleaseAgeExclude:
+  # All entries below were added on 2026-11-05 because they are inside
+  # the 7-day window and are required by the current dependency graph.
+  # Re-evaluate on 2026-11-12; remove each entry once a mature version
+  # of the same package is available and resolvable.
+  - "@vitest/mocker@5.1.0"
+  - "@vitest/spy@5.1.0"
+  - "baseline-browser-mapping@2.11.35"
+  - "electron-to-chromium@1.5.476"
+  - "enhanced-resolve@5.26.1"
+  - "eslint@10.14.0"
+  - "node-releases@2.0.63"
+  - "schema-utils@4.8.2"
+  - "semver@7.8.6"
+  - "strtok3@10.7.0"
+  - "tinybench@6.2.3"
+  - "token-types@6.2.0"
+  - "tslib@2.9.1"
+  - "vitest@5.1.0"
+  - "webpack-sources@3.7.0"
 
 overrides:
   "body-parser@<1.20.9": "1.20.9"
