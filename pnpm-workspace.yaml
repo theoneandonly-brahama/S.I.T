@@ -2,6 +2,40 @@ packages:
   - "apps/*"
   - "packages/*"
 
+blockExoticSubdeps: true
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 10080
+
+minimumReleaseAgeExclude:
+  # All entries below were added on 2026-11-05 because they are inside
+  # the 7-day window and are required by the current dependency graph.
+  
+  - "@vitest/mocker@5.1.0"
+  - "@vitest/spy@5.1.0"
+  - "baseline-browser-mapping@2.11.35"
+  - "electron-to-chromium@1.5.476"
+  - "enhanced-resolve@5.26.1"
+  - "eslint@10.14.0"
+  - "node-releases@2.0.63"
+  - "schema-utils@4.8.2"
+  - "semver@7.8.6"
+  - "strtok3@10.7.0"
+  - "tinybench@6.2.3"
+  - "token-types@6.2.0"
+  - "tslib@2.9.1"
+  - "vitest@5.1.0"
+  - "webpack-sources@3.7.0"
+
+overrides:
+  "body-parser@<1.20.9": "1.20.9"
+  "multer@<2.5.0": "2.5.0"
+  "brace-expansion@<2.1.6": "2.1.6"
+  "ip-address@<10.3.1": "10.3.1"
+  "pacote@<21.5.1": "21.5.1"
+  "picomatch@<4.0.4": "4.0.4"
+  "sigstore@<4.1.1": "4.1.1"
+
 allowBuilds:
   '@nestjs/core': false
   '@scarf/scarf': true

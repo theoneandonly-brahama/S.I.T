@@ -1,5 +1,5 @@
 # Stage 1: Dependencies
-FROM node:22-alpine AS deps
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 RUN corepack enable
@@ -8,6 +8,7 @@ RUN corepack enable
 COPY pnpm-lock.yaml ./pnpm-lock.yaml
 COPY pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY package.json ./package.json
+COPY .npmrc ./.npmrc
 
 #----package manifests----
 COPY apps/api/package.json ./apps/api/package.json
@@ -19,7 +20,7 @@ COPY packages/contract/package.json ./packages/contract/package.json
 RUN pnpm install --frozen-lockfile
 
 # Stage 2: Build
-FROM node:22-alpine AS builder
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS builder
 RUN corepack enable
 WORKDIR /app
 
@@ -34,7 +35,7 @@ COPY packages/config/ ./packages/config/
 RUN pnpm --filter @sit/api build
 
 # Stage 3 - production dependency closure for @sit/api only
-FROM node:22-alpine AS prod-deps
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS prod-deps
 RUN corepack enable
 WORKDIR /app
 
@@ -45,9 +46,11 @@ RUN pnpm --store-dir ./pnpm-store --filter @sit/api --prod deploy --legacy /out
 
 
 # Stage 4 - Runtime (non-root)
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nestjs

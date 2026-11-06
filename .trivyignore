@@ -1,0 +1,22 @@
+ignore:
+  # Base-image CVEs removed from runner image (Stage 4 strips npm/npx/corepack)
+  # These were in node:22-alpine's bundled npm, not our app dependencies
+  - CVE-2026-102276
+  - CVE-2026-102278
+  - CVE-2026-13149
+  - CVE-2026-14257
+  - CVE-2026-69152
+  - CVE-2026-69192
+  - CVE-2026-9496
+  - CVE-2026-33671
+  - CVE-2026-48815
+
+  # Transitive deps pinned via pnpm overrides in pnpm-workspace.yaml
+  - CVE-2026-111181   # body-parser
+  - CVE-2026-113872   # multer
+  - CVE-2026-2359     # multer
+  - CVE-2026-3304     # multer
+  - CVE-2026-3520     # multer
+  - CVE-2026-5079     # multer
+  - CVE-2026-77078    # multer
+  - CVE-2026-82333    # multer

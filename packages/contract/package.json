@@ -1,16 +1,28 @@
 {
-  "name": "contract",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "@sit/contract",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared request/response contracts for S.I.T clients and API",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "test": "echo \"No tests for contract package\" && exit 0"
+    "test": "vitest run",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
   },
   "keywords": [],
-  "author": "",
+  "author": "Houssem BARHEM",
   "license": "ISC",
   "type": "module",
   "devDependencies": {
-    "typescript": "^7.0.2"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
   }
 }

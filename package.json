@@ -4,7 +4,7 @@
   "private": true,
   "description": "S.I.T — Study In Tunisia",
   "license": "UNLICENSED",
-  "packageManager": "pnpm@10.34.9",
+  "packageManager": "pnpm@12.16.1+sha512.091d1dee7927575661b25dab3c2ae31cafc1c54d6b71ed6a6600cf0c1cb10434a447eae14015f1b23e2e6bedeed79df94a932e2164d2832280dce3fb32f656d1",
   "engines": {
     "node": ">=22.0.0 <25.0.0"
   },
@@ -14,7 +14,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "test": "vitest run",
+    "test:turbo": "turbo run test",
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
@@ -23,7 +24,8 @@
     "security:osv": "osv-scanner -r ."
   },
   "devDependencies": {
-    "turbo": "^2.4.4",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "turbo": "2.11.10",
+    "vitest": "^5.1.0"
   }
 }

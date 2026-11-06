@@ -2,7 +2,24 @@
   "name": "@sit/config",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
-    "tsconfig.base.json"
-  ]
+    "tsconfig.base.json",
+    "dist"
+  ],
+  "scripts": {
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
+  }
 }

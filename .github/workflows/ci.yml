@@ -16,27 +16,31 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  NODE_VERSION: 22
-  PNPM_VERSION: 10.34.9
+  NODE_VERSION: 22.23.3
+
 #________________________________________________________________________________________
 
 jobs:
   quality:
     name: Quality & Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      NO_COLOR: "1"
+      FORCE_COLOR: "0"
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v5
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -51,7 +55,7 @@ jobs:
 
       - name: Upload gate 1 report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-1-format-report
           path: format-check.log
@@ -64,7 +68,7 @@ jobs:
 
       - name: Upload gate 2 report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-2-lint-report
           path: lint.log
@@ -77,25 +81,25 @@ jobs:
 
       - name: Upload gate 3 report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-3-typecheck-report
           path: typecheck.log
           if-no-files-found: warn
 
-      # ----- Gate 4: Tests (no tests yet; the gate is wired, not active) ---
-      - name: Gate 4 — Tests (dormant until tests exist)
+      # ----- Gate 4: Tests (basic tests added; gate is now active) ---
+      - name: Gate 4 — Tests
         id: gate4
         run: |
           if find apps packages -type f \( -name "*.spec.ts" -o -name "*.test.ts" \) 2>/dev/null | grep -q .; then
             pnpm run test 2>&1 | tee test.log
           else
-            echo "no test files exist yet; gate 4 is wired but dormant" | tee test.log
+            echo "no test files exist yet; gate 4 is wired" > test.log
           fi
-
+      
       - name: Upload gate 4 report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-4-test-report
           path: test.log
@@ -114,7 +118,7 @@ jobs:
 
       - name: Upload gate 6 report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-6-build-report
           path: |
@@ -157,7 +161,7 @@ jobs:
 
       - name: Upload gate 8 report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-8-deployment-report
           path: |
@@ -169,16 +173,18 @@ jobs:
         if: always()
         run: |
           {
-            echo "## Quality & Build — Gate Results"
+            echo "## CI Pipeline — Quality & Build"
             echo ""
-            echo "| Step | Outcome |"
-            echo "|------|---------|"
-            echo "| 1 Format | \`${{ steps.gate1.outcome }}\` |"
-            echo "| 2 Lint | \`${{ steps.gate2.outcome }}\` |"
-            echo "| 3 Typecheck | \`${{ steps.gate3.outcome }}\` |"
-            echo "| 4 Tests (dormant) | \`${{ steps.gate4.outcome }}\` |"
-            echo "| 6 Build | \`${{ steps.gate6.outcome }}\` |"
-            echo "| 8 Compose | \`${{ steps.gate8.outcome }}\` |"
+            echo "Overall: ${{ (steps.gate1.outcome == 'success' && steps.gate2.outcome == 'success' && steps.gate3.outcome == 'success' && steps.gate4.outcome == 'success' && steps.gate6.outcome == 'success' && steps.gate8.outcome == 'success') && 'all gates passed' || 'one or more gates failed' }}"
+            echo ""
+            echo "| Gate | Status |"
+            echo "|------|--------|"
+            echo "| 1 — Format | ${{ steps.gate1.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| 2 — Lint | ${{ steps.gate2.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| 3 — Typecheck | ${{ steps.gate3.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| 4 — Tests | ${{ steps.gate4.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| 6 — Build | ${{ steps.gate6.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| 8 — Compose | ${{ steps.gate8.outcome == 'success' && 'passed' || 'failed' }} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # ── NEW: collapsible per-gate content, same pattern as the Trivy block ──
@@ -189,17 +195,18 @@ jobs:
             title="$1"; file="$2"; max="${3:-200}"
             [ -s "$file" ] || return 0
             total=$(wc -l < "$file")
+            strip_ansi() { sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g'; }
             {
               echo ""
               echo "<details><summary>${title} — ${total} lines</summary>"
               echo ""
               echo '```'
               if [ "$total" -le "$max" ]; then
-                cat "$file"
+                strip_ansi < "$file"
               else
-                head -n $((max / 2)) "$file"
+                head -n $((max / 2)) "$file" | strip_ansi
                 echo "... $((total - max)) lines omitted ..."
-                tail -n $((max / 2)) "$file"
+                tail -n $((max / 2)) "$file" | strip_ansi
               fi
               echo '```'
               echo "</details>"
@@ -208,13 +215,13 @@ jobs:
           publish "Gate 1 — Format" format-check.log
           publish "Gate 2 — Lint" lint.log
           publish "Gate 3 — Typecheck" typecheck.log
-          publish "Gate 4 — Tests" test.log
+          publish "Gate 4 — Vitest Tests" test.log
           publish "Gate 6 — Build" build.log 300
           publish "Gate 8 — Compose" gate-8.log
 
   security:
     name: Security & Supply Chain
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [quality]
     timeout-minutes: 25
     permissions:
@@ -227,17 +234,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           fetch-depth: 0 # required for full-history secret scan
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v5
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -256,7 +261,7 @@ jobs:
 
       - name: Upload gitleaks report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-5a-gitleaks-report
           path: gitleaks.log
@@ -270,6 +275,7 @@ jobs:
         id: gate5b
         run: |
           semgrep \
+            --config security/semgrep.yml \
             --config p/owasp-top-ten \
             --config p/security-audit \
             --sarif \
@@ -281,13 +287,13 @@ jobs:
         id: sarif
         if: always()
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v4   # v3 → v4
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370
         with:
           sarif_file: semgrep.sarif
           category: semgrep
       - name: Upload Semgrep artifacts
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-5b-semgrep-report
           path: |
@@ -303,7 +309,7 @@ jobs:
       - name: Gate 5c — Image vulnerability scan (blocking)
         id: gate5c
         if: always()
-        uses: aquasecurity/trivy-action@v0.36.0   # ← v-prefixed tag
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: 'sit-api:scan'
           severity: 'HIGH,CRITICAL'
@@ -314,7 +320,7 @@ jobs:
 
       - name: Upload Trivy report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-5c-trivy-report
           path: trivy-results.json
@@ -322,7 +328,7 @@ jobs:
 
       - name: Generate Trivy Report for Summary
         if: always()
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: 'sit-api:scan'
           format: 'table'
@@ -331,21 +337,10 @@ jobs:
           exit-code: '0'
           output: 'trivy-results.txt' # Save to a file
 
-      - name: Publish Trivy Report to Step Summary
-        if: always()
-        run: |
-          echo "## 🛡️ Trivy Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "<details><summary>Click to expand the full report</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
-
       - name: Gate 5d — SBOM generation
         id: gate5d
         if: always()
-        uses: aquasecurity/trivy-action@v0.36.0   # ← same tag
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: 'sit-api:scan'
           format: 'cyclonedx'
@@ -353,31 +348,33 @@ jobs:
 
       - name: Upload SBOM
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-5d-sbom
           path: sbom.cdx.json
           if-no-files-found: warn
 
-      - name: Summary — Security gates           # ← outcome table (unchanged)
+      - name: Summary — Security gates
         if: always()
         run: |
           {
-            echo "## Security & Supply Chain — Gate Results"
+            echo "## CI Pipeline — Security & Supply Chain"
             echo ""
-            echo "| Step | Outcome |"
-            echo "|------|---------|"
-            echo "| 5a Gitleaks | \`${{ steps.gate5a.outcome }}\` |"
-            echo "| 5b Semgrep | \`${{ steps.gate5b.outcome }}\` |"
-            echo "| 5b SARIF ingest | \`${{ steps.sarif.outcome }}\` |"
-            echo "| 5c Trivy image scan | \`${{ steps.gate5c.outcome }}\` |"
-            echo "| 5d SBOM inventory | \`${{ steps.gate5d.outcome }}\` |"
+            echo "Overall: ${{ (steps.gate5a.outcome == 'success' && steps.gate5b.outcome == 'success' && steps.sarif.outcome == 'success' && steps.gate5c.outcome == 'success' && steps.gate5d.outcome == 'success') && 'all gates passed' || 'one or more gates failed' }}"
+            echo ""
+            echo "| Gate | Status |"
+            echo "|------|--------|"
+            echo "| 5a — Gitleaks | ${{ steps.gate5a.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| 5b — Semgrep | ${{ steps.gate5b.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| 5b SARIF ingest | ${{ steps.sarif.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| 5c — Trivy image scan | ${{ steps.gate5c.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| 5d — SBOM inventory | ${{ steps.gate5d.outcome == 'success' && 'passed' || 'failed' }} |"
             echo ""
             echo "Artifacts are downloadable from the run's **Artifacts** section."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # ── NEW: collapsible per-gate content for 5a / 5b / 5d ──
-      # Trivy already publishes its own content above, so it is skipped here.
+      # ── NEW: collapsible per-gate content for 5a / 5b / 5c / 5d ──
+      # Trivy image-scan report is published through the same helper below.
       - name: Publish security gate logs to summary
         if: always()
         run: |
@@ -403,6 +400,7 @@ jobs:
           }
           publish "Gate 5a — Gitleaks" gitleaks.log
           publish "Gate 5b — Semgrep" semgrep.log 300
+          publish "Gate 5c — Trivy image scan" trivy-results.txt
 
           # SBOM is JSON, not a log — show size + first lines to prove it exists
           if [ -s sbom.cdx.json ]; then
