@@ -63,10 +63,14 @@ export class PasswordService {
       throw new BadRequestException('Password must not exceed 128 characters.');
     }
     if (!/[A-Za-z]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one letter.');
+      throw new BadRequestException(
+        'Password must contain at least one letter.'
+      );
     }
     if (!/[0-9]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one digit.');
+      throw new BadRequestException(
+        'Password must contain at least one digit.'
+      );
     }
   }
 }

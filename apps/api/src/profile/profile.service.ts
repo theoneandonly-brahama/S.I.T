@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   ProfileResponseDto,
@@ -15,8 +19,13 @@ export class ProfileService {
    * via the @unique constraint on accountId; throws ConflictException
    * if a profile already exists.
    */
-  async create(accountId: string, dto: CreateProfileDto): Promise<ProfileResponseDto> {
-    const existing = await this.prisma.profile.findUnique({ where: { accountId } });
+  async create(
+    accountId: string,
+    dto: CreateProfileDto
+  ): Promise<ProfileResponseDto> {
+    const existing = await this.prisma.profile.findUnique({
+      where: { accountId },
+    });
     if (existing) {
       throw new ConflictException('A profile already exists for this account.');
     }
@@ -34,7 +43,9 @@ export class ProfileService {
    * so only the account's own profile is ever returned.
    */
   async findByAccountId(accountId: string): Promise<ProfileResponseDto> {
-    const profile = await this.prisma.profile.findUnique({ where: { accountId } });
+    const profile = await this.prisma.profile.findUnique({
+      where: { accountId },
+    });
     if (!profile) {
       throw new NotFoundException('Profile not found.');
     }
@@ -48,9 +59,11 @@ export class ProfileService {
    */
   async update(
     accountId: string,
-    dto: UpdateProfileDto,
+    dto: UpdateProfileDto
   ): Promise<ProfileResponseDto> {
-    const profile = await this.prisma.profile.findUnique({ where: { accountId } });
+    const profile = await this.prisma.profile.findUnique({
+      where: { accountId },
+    });
     if (!profile) {
       throw new NotFoundException('Profile not found.');
     }

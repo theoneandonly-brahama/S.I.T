@@ -11,7 +11,9 @@ describe('PasswordService', () => {
   });
 
   it('rejects password shorter than 8 characters', async () => {
-    await expect(service.hash('Short1')).rejects.toThrow('at least 8 characters');
+    await expect(service.hash('Short1')).rejects.toThrow(
+      'at least 8 characters'
+    );
   });
 
   it('rejects password longer than 128 characters', async () => {

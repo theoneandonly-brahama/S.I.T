@@ -20,8 +20,13 @@ describe('AccountService', () => {
   const service = new AccountService(mockPrisma);
 
   it('throws ConflictException when email already exists', async () => {
-    mockPrisma.account.findUnique.mockResolvedValue({ id: 'existing', email: 'a@b.com' });
-    await expect(service.create('a@b.com', 'hash')).rejects.toThrow(ConflictException);
+    mockPrisma.account.findUnique.mockResolvedValue({
+      id: 'existing',
+      email: 'a@b.com',
+    });
+    await expect(service.create('a@b.com', 'hash')).rejects.toThrow(
+      ConflictException
+    );
   });
 
   it('creates account and strips passwordHash from response', async () => {

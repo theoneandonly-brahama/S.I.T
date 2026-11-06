@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -32,7 +36,9 @@ export class ConfirmationTokenService {
 
     const token = randomBytes(32).toString('hex');
     const tokenHash = await argon2.hash(token);
-    const expiresAt = new Date(Date.now() + ConfirmationTokenService.TOKEN_TTL_MS);
+    const expiresAt = new Date(
+      Date.now() + ConfirmationTokenService.TOKEN_TTL_MS
+    );
 
     await this.prisma.confirmationToken.create({
       data: {
@@ -75,7 +81,9 @@ export class ConfirmationTokenService {
    * successful verification so the token cannot be reused.
    */
   async consume(id: string) {
-    const record = await this.prisma.confirmationToken.findUnique({ where: { id } });
+    const record = await this.prisma.confirmationToken.findUnique({
+      where: { id },
+    });
     if (!record) {
       throw new NotFoundException('Confirmation token not found.');
     }

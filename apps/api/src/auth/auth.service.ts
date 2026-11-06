@@ -25,7 +25,7 @@ export class AuthService {
     private readonly accountService: AccountService,
     private readonly sessionService: SessionService,
     private readonly passwordService: PasswordService,
-    private readonly tokenService: TokenService,
+    private readonly tokenService: TokenService
   ) {}
 
   /**
@@ -37,8 +37,11 @@ export class AuthService {
     const account = await this.accountService.findByEmail(email);
 
     // Uniform failure: always run argon2 so timing doesn't reveal account existence.
-    const hash = account?.passwordHash ?? (await this.passwordService.hash('__dummy__'));
-    const passwordMatches = account ? await this.passwordService.verify(password, hash) : false;
+    const hash =
+      account?.passwordHash ?? (await this.passwordService.hash('__dummy__'));
+    const passwordMatches = account
+      ? await this.passwordService.verify(password, hash)
+      : false;
 
     if (!account || !passwordMatches) {
       throw new UnauthorizedException('Invalid credentials.');
@@ -53,16 +56,22 @@ export class AuthService {
    * The refresh token is returned once (plaintext) and stored hashed in the
    * Session table; it can be rotated via refresh() or revoked via logout().
    */
-  async login(accountId: string, email: string): Promise<{
+  async login(
+    accountId: string,
+    email: string
+  ): Promise<{
     accessToken: string;
     refreshToken: string;
     expiresIn: number;
   }> {
-    const accessToken = this.tokenService.signAccessToken({ sub: accountId, email });
+    const accessToken = this.tokenService.signAccessToken({
+      sub: accountId,
+      email,
+    });
     const refreshToken = this.tokenService.signRefreshToken({ sub: accountId });
     const refreshTokenHash = await argon2.hash(refreshToken);
     const expiresAt = new Date(
-      Date.now() + Number(process.env.JWT_REFRESH_TTL || 604800) * 1000,
+      Date.now() + Number(process.env.JWT_REFRESH_TTL || 604800) * 1000
     );
 
     await this.sessionService.create(accountId, refreshTokenHash, expiresAt);
@@ -92,12 +101,25 @@ export class AuthService {
     }
 
     const sessions = await this.sessionService.findActiveByAccount(decoded.sub);
-    let matchedSession: { id: string; refreshTokenHash: string; expiresAt: Date; accountId: string } | null = null;
+    let matchedSession: {
+      id: string;
+      refreshTokenHash: string;
+      expiresAt: Date;
+      accountId: string;
+    } | null = null;
 
     for (const session of sessions) {
-      const matches = await argon2.verify(session.refreshTokenHash, refreshToken);
+      const matches = await argon2.verify(
+        session.refreshTokenHash,
+        refreshToken
+      );
       if (matches) {
-        matchedSession = session as { id: string; refreshTokenHash: string; expiresAt: Date; accountId: string };
+        matchedSession = session as {
+          id: string;
+          refreshTokenHash: string;
+          expiresAt: Date;
+          accountId: string;
+        };
         break;
       }
     }
@@ -113,13 +135,19 @@ export class AuthService {
     await this.sessionService.revoke(matchedSession.id);
 
     // Issue a new session with a new refresh token.
-    const newRefreshToken = this.tokenService.signRefreshToken({ sub: decoded.sub });
+    const newRefreshToken = this.tokenService.signRefreshToken({
+      sub: decoded.sub,
+    });
     const newRefreshTokenHash = await argon2.hash(newRefreshToken);
     const newExpiresAt = new Date(
-      Date.now() + Number(process.env.JWT_REFRESH_TTL || 604800) * 1000,
+      Date.now() + Number(process.env.JWT_REFRESH_TTL || 604800) * 1000
     );
 
-    await this.sessionService.create(decoded.sub, newRefreshTokenHash, newExpiresAt);
+    await this.sessionService.create(
+      decoded.sub,
+      newRefreshTokenHash,
+      newExpiresAt
+    );
 
     const accessToken = this.tokenService.signAccessToken({
       sub: decoded.sub,
@@ -147,7 +175,10 @@ export class AuthService {
     let matchedSessionId: string | null = null;
 
     for (const session of sessions) {
-      const matches = await argon2.verify(session.refreshTokenHash, refreshToken);
+      const matches = await argon2.verify(
+        session.refreshTokenHash,
+        refreshToken
+      );
       if (matches) {
         matchedSessionId = session.id;
         break;
@@ -155,7 +186,9 @@ export class AuthService {
     }
 
     if (!matchedSessionId) {
-      throw new UnauthorizedException('Invalid or already revoked refresh token.');
+      throw new UnauthorizedException(
+        'Invalid or already revoked refresh token.'
+      );
     }
 
     await this.sessionService.revoke(matchedSessionId);

@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Role } from '@prisma/client';
 import { AccountResponseDto } from './dto/account.dto.js';
@@ -56,7 +60,7 @@ export class AccountService {
     isBanned: boolean,
     bannedAt?: Date,
     bannedUntil?: Date,
-    banReason?: string,
+    banReason?: string
   ) {
     return this.prisma.account.update({
       where: { id },
@@ -68,7 +72,10 @@ export class AccountService {
    * Strips passwordHash before returning the account to callers.
    * Credentials never leave the service layer in plaintext.
    */
-  private toResponse(account: { passwordHash?: string; [key: string]: unknown }): AccountResponseDto {
+  private toResponse(account: {
+    passwordHash?: string;
+    [key: string]: unknown;
+  }): AccountResponseDto {
     const { passwordHash: omitted, ...rest } = account;
     void omitted;
     return rest as unknown as AccountResponseDto;

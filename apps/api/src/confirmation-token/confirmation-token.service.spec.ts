@@ -57,7 +57,9 @@ describe('ConfirmationTokenService', () => {
     // All tokens are expired: findMany returns empty array
     mockPrisma.confirmationToken.findMany.mockResolvedValue([]);
 
-    await expect(service.verify('token')).rejects.toThrow(UnauthorizedException);
+    await expect(service.verify('token')).rejects.toThrow(
+      UnauthorizedException
+    );
   });
 
   it('throws UnauthorizedException when token is already consumed', async () => {

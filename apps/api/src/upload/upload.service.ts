@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { createWriteStream, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
@@ -46,23 +51,26 @@ export class UploadService {
    * record linked to the account. Returns safe metadata without the
    * filesystem path.
    */
-  async uploadFile(accountId: string, file: {
-    originalname: string;
-    mimetype: string;
-    size: number;
-    buffer: Buffer;
-  }): Promise<UploadResponseDto> {
+  async uploadFile(
+    accountId: string,
+    file: {
+      originalname: string;
+      mimetype: string;
+      size: number;
+      buffer: Buffer;
+    }
+  ): Promise<UploadResponseDto> {
     // Size cap enforcement.
     if (file.size > this.maxSize) {
       throw new BadRequestException(
-        `File too large. Maximum size is ${this.maxSize} bytes (${Math.round(this.maxSize / 1024 / 1024)} MB).`,
+        `File too large. Maximum size is ${this.maxSize} bytes (${Math.round(this.maxSize / 1024 / 1024)} MB).`
       );
     }
 
     // Content-type verification against allowlist.
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype as AllowedMimeType)) {
       throw new BadRequestException(
-        `File type '${file.mimetype}' is not allowed. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}.`,
+        `File type '${file.mimetype}' is not allowed. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}.`
       );
     }
 
@@ -94,8 +102,13 @@ export class UploadService {
    * The accessToken is a short-lived JWT-like token the controller can
    * validate before streaming the file.
    */
-  async getSignedAccess(accountId: string, storageKey: string): Promise<UploadSignedAccessDto> {
-    const upload = await this.prisma.upload.findUnique({ where: { storageKey } });
+  async getSignedAccess(
+    accountId: string,
+    storageKey: string
+  ): Promise<UploadSignedAccessDto> {
+    const upload = await this.prisma.upload.findUnique({
+      where: { storageKey },
+    });
     if (!upload) {
       throw new NotFoundException('Upload not found.');
     }
@@ -134,7 +147,9 @@ export class UploadService {
    * (if present), and deletes the Upload record.
    */
   async deleteUpload(accountId: string, storageKey: string): Promise<void> {
-    const upload = await this.prisma.upload.findUnique({ where: { storageKey } });
+    const upload = await this.prisma.upload.findUnique({
+      where: { storageKey },
+    });
     if (!upload) {
       throw new NotFoundException('Upload not found.');
     }

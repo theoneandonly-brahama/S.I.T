@@ -7,7 +7,8 @@
 import { beforeAll, afterAll } from 'vitest';
 import { GenericContainer, Wait } from 'testcontainers';
 
-let container: Awaited<ReturnType<GenericContainer.prototype.start>> | null = null;
+let container: Awaited<ReturnType<GenericContainer.prototype.start>> | null =
+  null;
 
 beforeAll(async () => {
   container = await new GenericContainer('postgres:16-alpine')
@@ -17,7 +18,9 @@ beforeAll(async () => {
       POSTGRES_DB: 'sit_test',
     })
     .withExposedPorts(5432)
-    .withWaitStrategy(Wait.forLogMessage('database system is ready to accept connections'))
+    .withWaitStrategy(
+      Wait.forLogMessage('database system is ready to accept connections')
+    )
     .start();
 
   const port = container.getMappedPort(5432);

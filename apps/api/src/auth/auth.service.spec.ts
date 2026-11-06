@@ -28,7 +28,7 @@ describe('AuthService', () => {
     mockAccountService,
     mockSessionService,
     mockPasswordService,
-    mockTokenService,
+    mockTokenService
   );
 
   it('returns account id and email on successful authentication', async () => {
@@ -48,7 +48,7 @@ describe('AuthService', () => {
     mockPasswordService.hash.mockResolvedValue('dummy-hash');
 
     await expect(service.authenticate('nope@b.com', 'pass')).rejects.toThrow(
-      UnauthorizedException,
+      UnauthorizedException
     );
   });
 
@@ -61,7 +61,7 @@ describe('AuthService', () => {
     mockPasswordService.verify.mockResolvedValue(false);
 
     await expect(service.authenticate('a@b.com', 'wrong')).rejects.toThrow(
-      UnauthorizedException,
+      UnauthorizedException
     );
   });
 
@@ -71,7 +71,7 @@ describe('AuthService', () => {
     mockPasswordService.verify.mockResolvedValue(false);
 
     await expect(service.authenticate('nope@b.com', 'pass')).rejects.toThrow(
-      UnauthorizedException,
+      UnauthorizedException
     );
     // Timing mitigation: argon2 still runs against a dummy hash when account
     // is missing, so timing does not reveal account existence.

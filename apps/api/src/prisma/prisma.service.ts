@@ -7,7 +7,10 @@ import { PrismaClient } from '@prisma/client';
  * when the application shuts down, preventing leaked connections.
  */
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   async onModuleInit() {
     await this.$connect();
   }

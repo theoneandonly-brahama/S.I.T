@@ -26,7 +26,7 @@ describe('UploadService', () => {
         mimetype: 'application/pdf',
         size: 10 * 1024 * 1024,
         buffer: Buffer.alloc(10),
-      }),
+      })
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -37,7 +37,7 @@ describe('UploadService', () => {
         mimetype: 'application/x-shellscript',
         size: 100,
         buffer: Buffer.alloc(10),
-      }),
+      })
     ).rejects.toThrow(BadRequestException);
   });
 

@@ -19,9 +19,12 @@ describe('ProfileService', () => {
   const service = new ProfileService(mockPrisma);
 
   it('throws ConflictException when profile already exists', async () => {
-    mockPrisma.profile.findUnique.mockResolvedValue({ id: '1', accountId: 'acc' });
+    mockPrisma.profile.findUnique.mockResolvedValue({
+      id: '1',
+      accountId: 'acc',
+    });
     await expect(
-      service.create('acc', { firstName: 'Ada', lastName: 'Lovelace' }),
+      service.create('acc', { firstName: 'Ada', lastName: 'Lovelace' })
     ).rejects.toThrow(ConflictException);
   });
 
@@ -50,7 +53,9 @@ describe('ProfileService', () => {
 
   it('throws NotFoundException when profile missing', async () => {
     mockPrisma.profile.findUnique.mockResolvedValue(null);
-    await expect(service.findByAccountId('acc')).rejects.toThrow(NotFoundException);
+    await expect(service.findByAccountId('acc')).rejects.toThrow(
+      NotFoundException
+    );
   });
 
   it('updates only provided fields (patch semantics)', async () => {
@@ -67,7 +72,9 @@ describe('ProfileService', () => {
       lastName: 'Lovelace Updated',
     });
 
-    const result = await service.update('acc', { lastName: 'Lovelace Updated' });
+    const result = await service.update('acc', {
+      lastName: 'Lovelace Updated',
+    });
 
     expect(mockPrisma.profile.update).toHaveBeenCalledWith({
       where: { accountId: 'acc' },

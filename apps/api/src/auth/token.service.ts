@@ -1,5 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { sign, verify, JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
+import {
+  sign,
+  verify,
+  JsonWebTokenError,
+  TokenExpiredError,
+} from 'jsonwebtoken';
 
 /**
  * TokenService issues and verifies short-lived JWT access tokens and
@@ -23,7 +28,8 @@ export class TokenService {
   private readonly refreshTtlSeconds: number;
 
   constructor() {
-    this.secret = process.env.JWT_SECRET || 'change-me-in-production-32-chars-min';
+    this.secret =
+      process.env.JWT_SECRET || 'change-me-in-production-32-chars-min';
     this.accessTtlSeconds = Number(process.env.JWT_ACCESS_TTL) || 900;
     this.refreshTtlSeconds = Number(process.env.JWT_REFRESH_TTL) || 604800;
   }
@@ -56,7 +62,12 @@ export class TokenService {
    * Verifies a JWT access token and returns its payload.
    * Throws UnauthorizedException on expired or malformed tokens.
    */
-  verifyAccessToken(token: string): { sub: string; email: string; iat: number; exp: number } {
+  verifyAccessToken(token: string): {
+    sub: string;
+    email: string;
+    iat: number;
+    exp: number;
+  } {
     try {
       const payload = verify(token, this.secret, {
         issuer: 'sit-api',
