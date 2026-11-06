@@ -10,8 +10,7 @@ trustPolicyIgnoreAfter: 10080
 minimumReleaseAgeExclude:
   # All entries below were added on 2026-11-05 because they are inside
   # the 7-day window and are required by the current dependency graph.
-  # Re-evaluate on 2026-11-12; remove each entry once a mature version
-  # of the same package is available and resolvable.
+  
   - "@vitest/mocker@5.1.0"
   - "@vitest/spy@5.1.0"
   - "baseline-browser-mapping@2.11.35"

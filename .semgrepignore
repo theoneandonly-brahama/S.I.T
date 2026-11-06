@@ -1,8 +1,24 @@
-# Semgrep scan scope (triage increment boilerplate).
-# Paths excluded from scanning; each exclusion is a candidate triage decision.
-
 **/dist/
 **/node_modules/
+**/.turbo/
 **/coverage/
-**/playwright-report/
 **/test-results/
+**/playwright-report/
+
+# Lockfiles and generated config
+pnpm-lock.yaml
+.pnpm/
+
+# Version control
+.git/
+.github/
+
+# Editor and OS noise
+.vscode/
+.idea/
+.DS_Store
+
+# Local environment
+.env
+.env.*
+!.env.example
