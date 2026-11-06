@@ -24,6 +24,7 @@
     "security:osv": "osv-scanner -r ."
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^5.1.0",
     "prettier": "^3.5.3",
     "turbo": "2.11.10",
     "vitest": "^5.1.0"

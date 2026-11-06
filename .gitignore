@@ -56,6 +56,7 @@ Thumbs.db
 # Local overrides
 .envrc.local
 
+
 # Private AI-assistant workflow files — never publish
 # (owner-authorized exclusion of AI-identifiable files; see the
 # Mandatory Project Policy in AGENTS.md, section B)
@@ -85,3 +86,4 @@ apps/api/.turbo/
 .devcontainer/
 .vscode/
 .envrc.local
+junit.xml

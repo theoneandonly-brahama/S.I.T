@@ -1,0 +1,76 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { sign, verify, JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
+
+/**
+ * TokenService issues and verifies short-lived JWT access tokens and
+ * refresh tokens.
+ *
+ * Access tokens are stateless JWTs signed with JWT_SECRET and expire
+ * after JWT_ACCESS_TTL (default 900s = 15 minutes).
+ *
+ * Refresh tokens are also JWTs (signed with JWT_SECRET, expire after
+ * JWT_REFRESH_TTL). The refresh token string is stored hashed in the
+ * Session table (Session.refreshTokenHash) so that a database leak does
+ * not expose usable refresh tokens. To validate a presented refresh
+ * token, it is decoded (signature not verified at decode time) to obtain
+ * the account id, then each active session for that account is checked
+ * with argon2.verify against the stored hash.
+ */
+@Injectable()
+export class TokenService {
+  private readonly secret: string;
+  private readonly accessTtlSeconds: number;
+  private readonly refreshTtlSeconds: number;
+
+  constructor() {
+    this.secret = process.env.JWT_SECRET || 'change-me-in-production-32-chars-min';
+    this.accessTtlSeconds = Number(process.env.JWT_ACCESS_TTL) || 900;
+    this.refreshTtlSeconds = Number(process.env.JWT_REFRESH_TTL) || 604800;
+  }
+
+  /**
+   * Signs a short-lived JWT access token.
+   * Payload carries the account id (sub) and email.
+   */
+  signAccessToken(payload: { sub: string; email: string }): string {
+    return sign(payload, this.secret, {
+      expiresIn: this.accessTtlSeconds,
+      issuer: 'sit-api',
+      audience: 'sit-client',
+    });
+  }
+
+  /**
+   * Signs a refresh token JWT.
+   * Payload carries the account id (sub).
+   */
+  signRefreshToken(payload: { sub: string }): string {
+    return sign(payload, this.secret, {
+      expiresIn: this.refreshTtlSeconds,
+      issuer: 'sit-api',
+      audience: 'sit-client',
+    });
+  }
+
+  /**
+   * Verifies a JWT access token and returns its payload.
+   * Throws UnauthorizedException on expired or malformed tokens.
+   */
+  verifyAccessToken(token: string): { sub: string; email: string; iat: number; exp: number } {
+    try {
+      const payload = verify(token, this.secret, {
+        issuer: 'sit-api',
+        audience: 'sit-client',
+      }) as { sub: string; email: string; iat: number; exp: number };
+      return payload;
+    } catch (err) {
+      if (err instanceof TokenExpiredError) {
+        throw new UnauthorizedException('Access token expired.');
+      }
+      if (err instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Invalid access token.');
+      }
+      throw new UnauthorizedException('Invalid access token.');
+    }
+  }
+}

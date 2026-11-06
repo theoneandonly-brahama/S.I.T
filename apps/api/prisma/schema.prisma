@@ -1,0 +1,86 @@
+// S.I.T — Prisma schema (Sprint 2 foundation)
+// Single source of truth for Account, Session, ConfirmationToken, Profile, Upload.
+// Run: npx prisma generate  &&  npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  UNIVERSITY_EMPLOYEE
+  ADVISER
+  SUB_ADMINISTRATOR
+  PLATFORM_STAFF
+}
+
+model Account {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  role          Role     @default(STUDENT)
+  isVerified    Boolean  @default(false)
+  isBanned      Boolean  @default(false)
+  bannedAt      DateTime?
+  bannedUntil   DateTime?
+  banReason     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions      Session[]
+  confirmation  ConfirmationToken?
+  profile       Profile?
+  uploads       Upload[]
+}
+
+model Session {
+  id                String   @id @default(uuid())
+  accountId         String
+  refreshTokenHash  String   @unique
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  createdAt         DateTime @default(now())
+
+  account           Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  @@index([accountId])
+}
+
+model ConfirmationToken {
+  id          String   @id @default(uuid())
+  accountId   String   @unique
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  consumedAt  DateTime?
+
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model Profile {
+  id          String   @id @default(uuid())
+  accountId   String   @unique
+  firstName   String
+  lastName    String
+  diploma     String?
+  university  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model Upload {
+  id           String   @id @default(uuid())
+  accountId    String
+  originalName String
+  storageKey   String   @unique
+  mimeType     String
+  size         Int
+  createdAt    DateTime @default(now())
+
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  @@index([accountId])
+}

@@ -87,7 +87,7 @@ jobs:
           path: typecheck.log
           if-no-files-found: warn
 
-      # ----- Gate 4: Tests (basic tests added; gate is now active) ---
+      # ----- Gate 4: Tests (unit tests + coverage + JUnit XML) ---
       - name: Gate 4 — Tests
         id: gate4
         run: |
@@ -102,7 +102,10 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-4-test-report
-          path: test.log
+          path: |
+            test.log
+            junit.xml
+            coverage/
           if-no-files-found: warn
 
       # ----- Gate 6: Build -------------------------------------------------
