@@ -45,6 +45,7 @@ export class SessionController {
       id: s.id,
       accountId: s.accountId,
       expiresAt: s.expiresAt,
+      revokedAt: s.revokedAt ?? undefined,
       createdAt: s.createdAt,
     }));
   }
@@ -68,7 +69,7 @@ export class SessionController {
       id: revoked.id,
       accountId: revoked.accountId,
       expiresAt: revoked.expiresAt,
-      revokedAt: revoked.revokedAt,
+      revokedAt: revoked.revokedAt ?? undefined,
       createdAt: revoked.createdAt,
     };
   }

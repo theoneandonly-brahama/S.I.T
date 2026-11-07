@@ -2,7 +2,6 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    setupFiles: ['./vitest.setup.ts'],
     hookTimeout: 60000,
     // Argon2 operations are deliberately slow (64 MB memory, 3 passes)
     // and measured at 0.5-1.3 s each under parallel test load; several

@@ -4,6 +4,7 @@
 // deletion (disk + database).
 
 import 'reflect-metadata';
+import '../vitest.setup.js'; // Testcontainers + Prisma setup
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';

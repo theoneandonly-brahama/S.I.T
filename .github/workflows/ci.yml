@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      NO_COLOR: "1"
-      FORCE_COLOR: "0"
+      NO_COLOR: '1'
+      FORCE_COLOR: '0'
     defaults:
       run:
         shell: bash --noprofile --norc -euo pipefail {0}
@@ -75,6 +75,10 @@ jobs:
           if-no-files-found: warn
 
       # ----- Gate 3: Type contract ----------------------------------------
+      - name: Generate Prisma Client
+        run: pnpm --filter @sit/api exec prisma generate
+        working-directory: apps/api
+
       - name: Gate 3 — Type check
         id: gate3
         run: pnpm run typecheck 2>&1 | tee typecheck.log
@@ -96,7 +100,7 @@ jobs:
           else
             echo "no test files exist yet; gate 4 is wired" > test.log
           fi
-      
+
       - name: Upload gate 4 report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
