@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
@@ -30,7 +31,7 @@ export class UploadService {
   private readonly storagePath: string;
   private readonly maxSize: number;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {
     this.storagePath = process.env.UPLOAD_STORAGE_PATH || './uploads';
     this.maxSize = Number(process.env.UPLOAD_MAX_SIZE) || 5242880; // 5 MB
 

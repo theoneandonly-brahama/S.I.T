@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import { decode } from 'jsonwebtoken';
 import argon2 from 'argon2';
 import { AccountService } from '../account/account.service.js';
@@ -22,10 +22,10 @@ import { TokenService } from './token.service.js';
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly accountService: AccountService,
-    private readonly sessionService: SessionService,
-    private readonly passwordService: PasswordService,
-    private readonly tokenService: TokenService
+    @Inject(AccountService) private readonly accountService: AccountService,
+    @Inject(SessionService) private readonly sessionService: SessionService,
+    @Inject(PasswordService) private readonly passwordService: PasswordService,
+    @Inject(TokenService) private readonly tokenService: TokenService
   ) {}
 
   /**
@@ -37,8 +37,12 @@ export class AuthService {
     const account = await this.accountService.findByEmail(email);
 
     // Uniform failure: always run argon2 so timing doesn't reveal account existence.
+    // The dummy input must satisfy the password policy (>=8 chars, letter,
+    // digit) or PasswordService.hash would throw a 400 for unknown accounts,
+    // leaking account existence through the status code.
     const hash =
-      account?.passwordHash ?? (await this.passwordService.hash('__dummy__'));
+      account?.passwordHash ??
+      (await this.passwordService.hash('__dummy_account_123__'));
     const passwordMatches = account
       ? await this.passwordService.verify(password, hash)
       : false;

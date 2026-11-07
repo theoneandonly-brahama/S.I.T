@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -19,7 +20,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class ConfirmationTokenService {
   private static readonly TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   /**
    * Generates a confirmation token for an account, stores it hashed with

@@ -55,6 +55,57 @@ describe('AccountService', () => {
     await expect(service.findById('nope')).rejects.toThrow(NotFoundException);
   });
 
+  it('findById strips passwordHash from the response', async () => {
+    mockPrisma.account.findUnique.mockResolvedValue({
+      id: '1',
+      email: 'a@b.com',
+      passwordHash: 'secret',
+      role: Role.STUDENT,
+      isVerified: false,
+      isBanned: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const result = await service.findById('1');
+    expect(result.passwordHash).toBeUndefined();
+    expect(result.email).toBe('a@b.com');
+  });
+
+  it('update changes email and strips passwordHash', async () => {
+    mockPrisma.account.findUnique
+      .mockResolvedValueOnce({
+        id: '1',
+        email: 'old@a.com',
+        passwordHash: 'secret',
+        role: Role.STUDENT,
+      })
+      .mockResolvedValueOnce(null); // no collision on the new email
+    mockPrisma.account.update.mockResolvedValue({
+      id: '1',
+      email: 'new@a.com',
+      passwordHash: 'secret',
+      role: Role.STUDENT,
+      isVerified: false,
+      isBanned: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await service.update('1', { email: 'new@a.com' });
+    expect(result.email).toBe('new@a.com');
+    expect(result.passwordHash).toBeUndefined();
+  });
+
+  it('update throws ConflictException when the new email is taken', async () => {
+    mockPrisma.account.findUnique
+      .mockResolvedValueOnce({ id: '1', email: 'old@a.com' })
+      .mockResolvedValueOnce({ id: '2', email: 'taken@a.com' });
+
+    await expect(
+      service.update('1', { email: 'taken@a.com' }),
+    ).rejects.toThrow(ConflictException);
+  });
+
   it('marks account as verified', async () => {
     mockPrisma.account.update.mockResolvedValue({ id: '1', isVerified: true });
     const result = await service.markVerified('1');
