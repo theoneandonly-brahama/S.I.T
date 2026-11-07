@@ -31,7 +31,7 @@ COPY apps/api/ ./apps/api/
 COPY packages/contract/ ./packages/contract/
 COPY packages/config/ ./packages/config/
 
-RUN pnpm exec prisma generate
+RUN DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy pnpm --filter @sit/api exec prisma generate
 RUN pnpm --filter @sit/api build
 
 # Stage 3 - production dependency closure for @sit/api only
@@ -43,6 +43,19 @@ COPY --from=deps /app/ ./
 COPY --from=deps /root/.local/share/pnpm/store ./pnpm-store
 
 RUN pnpm --store-dir ./pnpm-store --filter @sit/api --prod deploy --legacy /out
+
+# Prisma runtime generation inside the pruned tree:
+# - `@prisma/client` is a prod dependency, but the pruned /out does NOT ship
+#   the `prisma` CLI (devDependency) and deploy re-links from the immutable
+#   content store, which never contains the generated `.prisma` runtime files.
+# - Generation therefore runs here, with cwd=/out so the client output
+#   resolves inside the deployed tree. DATABASE_URL is only a throwaway
+#   literal for Prisma 7 config validation (generate does not connect).
+COPY apps/api/prisma /out/prisma
+COPY apps/api/prisma.config.ts /out/prisma.config.ts
+RUN cd /out && \
+    DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy \
+    /app/apps/api/node_modules/.bin/prisma generate --schema=prisma/schema.prisma
 
 
 # Stage 4 - Runtime (non-root)
