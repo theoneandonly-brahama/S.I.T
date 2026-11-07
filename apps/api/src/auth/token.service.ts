@@ -5,6 +5,7 @@ import {
   JsonWebTokenError,
   TokenExpiredError,
 } from 'jsonwebtoken';
+import { randomUUID } from 'node:crypto';
 
 /**
  * TokenService issues and verifies short-lived JWT access tokens and
@@ -48,10 +49,17 @@ export class TokenService {
 
   /**
    * Signs a refresh token JWT.
-   * Payload carries the account id (sub).
+   * The payload carries the account id (sub) plus a unique per-issuance `jti`.
+   * The `jti` is essential for correctness: jsonwebtoken auto-stamps `iat`
+   * (seconds), so two refresh tokens signed for the same account inside the
+   * same second would otherwise be the *identical plaintext string*. Session
+   * validation matches tokens by argon2 hash comparison, so sibling sessions
+   * created from that same string would keep authenticating a token after
+   * its session was revoked — breaking rotation-revocation and logout.
+   * The cryptographic nonce guarantees every issued token string is unique.
    */
   signRefreshToken(payload: { sub: string }): string {
-    return sign(payload, this.secret, {
+    return sign({ ...payload, jti: randomUUID() }, this.secret, {
       expiresIn: this.refreshTtlSeconds,
       issuer: 'sit-api',
       audience: 'sit-client',
