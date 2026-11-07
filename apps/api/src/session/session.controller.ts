@@ -30,7 +30,7 @@ interface RequestUser {
 @UseGuards(JwtAuthGuard)
 export class SessionController {
   constructor(
-    @Inject(SessionService) private readonly sessionService: SessionService,
+    @Inject(SessionService) private readonly sessionService: SessionService
   ) {}
 
   /**
@@ -54,10 +54,7 @@ export class SessionController {
    * session belongs to a different account.
    */
   @Delete(':id')
-  async revoke(
-    @CurrentUser() user: RequestUser,
-    @Param('id') id: string,
-  ) {
+  async revoke(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     // Verify the session exists and belongs to the caller.
     const sessions = await this.sessionService.findActiveByAccount(user.sub);
     const owned = sessions.find((s) => s.id === id);

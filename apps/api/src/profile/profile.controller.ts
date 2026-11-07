@@ -10,10 +10,7 @@ import {
 import { ProfileService } from './profile.service.js';
 import { JwtAuthGuard } from '../auth/guards/auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
-import {
-  CreateProfileDto,
-  UpdateProfileDto,
-} from './dto/profile.dto.js';
+import { CreateProfileDto, UpdateProfileDto } from './dto/profile.dto.js';
 
 interface RequestUser {
   sub: string;
@@ -35,7 +32,7 @@ interface RequestUser {
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
   constructor(
-    @Inject(ProfileService) private readonly profileService: ProfileService,
+    @Inject(ProfileService) private readonly profileService: ProfileService
   ) {}
 
   /**
@@ -45,7 +42,7 @@ export class ProfileController {
   @Post()
   async create(
     @CurrentUser() user: RequestUser,
-    @Body() dto: CreateProfileDto,
+    @Body() dto: CreateProfileDto
   ) {
     return this.profileService.create(user.sub, dto);
   }
@@ -67,7 +64,7 @@ export class ProfileController {
   @Patch()
   async update(
     @CurrentUser() user: RequestUser,
-    @Body() dto: UpdateProfileDto,
+    @Body() dto: UpdateProfileDto
   ) {
     return this.profileService.update(user.sub, dto);
   }

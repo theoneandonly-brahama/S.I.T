@@ -30,7 +30,7 @@ export class AuthController {
   constructor(
     @Inject(AuthService) private readonly authService: AuthService,
     @Inject(AccountService) private readonly accountService: AccountService,
-    @Inject(PasswordService) private readonly passwordService: PasswordService,
+    @Inject(PasswordService) private readonly passwordService: PasswordService
   ) {}
 
   /**
@@ -40,10 +40,7 @@ export class AuthController {
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     const passwordHash = await this.passwordService.hash(dto.password);
-    const account = await this.accountService.create(
-      dto.email,
-      passwordHash,
-    );
+    const account = await this.accountService.create(dto.email, passwordHash);
 
     const tokens = await this.authService.login(account.id, account.email);
 
@@ -62,7 +59,7 @@ export class AuthController {
   async login(@Body() dto: LoginDto) {
     const account = await this.authService.authenticate(
       dto.email,
-      dto.password,
+      dto.password
     );
 
     const tokens = await this.authService.login(account.id, account.email);

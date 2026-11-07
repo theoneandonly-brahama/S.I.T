@@ -43,7 +43,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // Log unknown errors server-side for debugging.
       console.error(
         `[${new Date().toISOString()}] Unhandled exception:`,
-        exception,
+        exception
       );
     }
 

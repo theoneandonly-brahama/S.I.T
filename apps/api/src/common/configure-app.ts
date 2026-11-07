@@ -21,7 +21,7 @@ export function configureApp(app: INestApplication): void {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-    }),
+    })
   );
 
   app.useGlobalFilters(new AllExceptionsFilter());

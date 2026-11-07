@@ -54,7 +54,10 @@ export class AccountService {
    * as ConflictException instead of a raw Prisma error. Returns the
    * safe representation (no passwordHash).
    */
-  async update(id: string, dto: { email?: string }): Promise<AccountResponseDto> {
+  async update(
+    id: string,
+    dto: { email?: string }
+  ): Promise<AccountResponseDto> {
     const account = await this.prisma.account.findUnique({ where: { id } });
     if (!account) {
       throw new NotFoundException('Account not found.');
@@ -65,7 +68,9 @@ export class AccountService {
         where: { email: dto.email },
       });
       if (existing) {
-        throw new ConflictException('An account with this email already exists.');
+        throw new ConflictException(
+          'An account with this email already exists.'
+        );
       }
     }
 

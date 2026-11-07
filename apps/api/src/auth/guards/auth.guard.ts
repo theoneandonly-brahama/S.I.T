@@ -17,14 +17,18 @@ import { TokenService } from '../token.service.js';
  */
 @Injectable()
 export class JwtAuthGuard {
-  constructor(@Inject(TokenService) private readonly tokenService: TokenService) {}
+  constructor(
+    @Inject(TokenService) private readonly tokenService: TokenService
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing or invalid authorization header.');
+      throw new UnauthorizedException(
+        'Missing or invalid authorization header.'
+      );
     }
 
     const token = authHeader.slice(7); // strip 'Bearer '

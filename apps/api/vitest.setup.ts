@@ -43,7 +43,7 @@ beforeAll(async () => {
       Wait.forAll([
         Wait.forLogMessage('database system is ready to accept connections', 2),
         Wait.forListeningPorts(),
-      ]),
+      ])
     )
     .start();
 

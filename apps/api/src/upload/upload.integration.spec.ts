@@ -119,9 +119,7 @@ describe('Upload endpoints (integration, real PostgreSQL + disk)', () => {
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(200);
     expect(typeof res.body.accessToken).toBe('string');
-    expect(new Date(res.body.expiresAt).getTime()).toBeGreaterThan(
-      Date.now(),
-    );
+    expect(new Date(res.body.expiresAt).getTime()).toBeGreaterThan(Date.now());
   });
 
   it('GET /upload/:key/signed-access denies non-owners with 401', async () => {
@@ -139,7 +137,7 @@ describe('Upload endpoints (integration, real PostgreSQL + disk)', () => {
       .expect(404);
   });
 
-  it('DELETE /upload/:key refuses to delete another account\'s file', async () => {
+  it("DELETE /upload/:key refuses to delete another account's file", async () => {
     await request(server)
       .delete(`/upload/${storageKey}`)
       .set('Authorization', `Bearer ${intruderToken}`)

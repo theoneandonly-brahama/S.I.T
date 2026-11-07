@@ -1,9 +1,4 @@
-import {
-  IsEmail,
-  IsString,
-  MinLength,
-  MaxLength,
-} from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
 
 /**
  * LoginDto is the request body for POST /auth/login.

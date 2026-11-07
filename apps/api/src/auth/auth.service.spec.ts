@@ -78,7 +78,7 @@ describe('AuthService', () => {
     // Timing mitigation: argon2 still runs against a dummy hash when account
     // is missing, so timing does not reveal account existence.
     expect(mockPasswordService.hash).toHaveBeenCalledWith(
-      '__dummy_account_123__',
+      '__dummy_account_123__'
     );
     expect(mockPasswordService.verify).not.toHaveBeenCalled();
   });

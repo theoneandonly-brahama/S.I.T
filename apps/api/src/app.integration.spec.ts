@@ -69,7 +69,11 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
     // allow privilege escalation (registering as PLATFORM_STAFF).
     const res = await request(server)
       .post('/auth/register')
-      .send({ email: `escalate_${unique}@sit.test`, password, role: 'PLATFORM_STAFF' })
+      .send({
+        email: `escalate_${unique}@sit.test`,
+        password,
+        role: 'PLATFORM_STAFF',
+      })
       .expect(400);
     expect(res.body.statusCode).toBe(400);
   });

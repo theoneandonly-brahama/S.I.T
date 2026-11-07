@@ -30,7 +30,7 @@ interface RequestUser {
 @UseGuards(JwtAuthGuard)
 export class AccountController {
   constructor(
-    @Inject(AccountService) private readonly accountService: AccountService,
+    @Inject(AccountService) private readonly accountService: AccountService
   ) {}
 
   /**
@@ -50,7 +50,7 @@ export class AccountController {
   @Patch('me')
   async updateMe(
     @CurrentUser() user: RequestUser,
-    @Body() dto: UpdateAccountDto,
+    @Body() dto: UpdateAccountDto
   ) {
     return this.accountService.update(user.sub, dto);
   }

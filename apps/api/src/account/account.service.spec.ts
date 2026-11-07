@@ -101,9 +101,9 @@ describe('AccountService', () => {
       .mockResolvedValueOnce({ id: '1', email: 'old@a.com' })
       .mockResolvedValueOnce({ id: '2', email: 'taken@a.com' });
 
-    await expect(
-      service.update('1', { email: 'taken@a.com' }),
-    ).rejects.toThrow(ConflictException);
+    await expect(service.update('1', { email: 'taken@a.com' })).rejects.toThrow(
+      ConflictException
+    );
   });
 
   it('marks account as verified', async () => {

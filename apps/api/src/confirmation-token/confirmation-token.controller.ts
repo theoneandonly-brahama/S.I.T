@@ -33,7 +33,7 @@ export class ConfirmationTokenController {
   constructor(
     @Inject(ConfirmationTokenService)
     private readonly tokenService: ConfirmationTokenService,
-    @Inject(AccountService) private readonly accountService: AccountService,
+    @Inject(AccountService) private readonly accountService: AccountService
   ) {}
 
   /**
@@ -43,10 +43,7 @@ export class ConfirmationTokenController {
    */
   @Post()
   @UseGuards(JwtAuthGuard)
-  async create(
-    @CurrentUser() user: RequestUser,
-    @Body() dto: CreateTokenDto,
-  ) {
+  async create(@CurrentUser() user: RequestUser, @Body() dto: CreateTokenDto) {
     // dto is accepted for extensibility (e.g. resending to a new email)
     // but currently unused — the token is always for the authenticated account.
     void dto;

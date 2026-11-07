@@ -51,7 +51,7 @@ interface UploadedFile {
 @UseGuards(JwtAuthGuard)
 export class UploadController {
   constructor(
-    @Inject(UploadService) private readonly uploadService: UploadService,
+    @Inject(UploadService) private readonly uploadService: UploadService
   ) {}
 
   /**
@@ -65,11 +65,11 @@ export class UploadController {
       limits: {
         fileSize: 5 * 1024 * 1024, // 5 MB hard cap at the transport layer
       },
-    }),
+    })
   )
   async upload(
     @CurrentUser() user: RequestUser,
-    @UploadedFile() file: UploadedFile,
+    @UploadedFile() file: UploadedFile
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded.');
@@ -100,7 +100,7 @@ export class UploadController {
   async getSignedAccess(
     @CurrentUser() user: RequestUser,
     @Param('key') key: string,
-    @Body() dto: GetSignedAccessDto,
+    @Body() dto: GetSignedAccessDto
   ) {
     void dto; // reserved for future use (e.g. download format)
     return this.uploadService.getSignedAccess(user.sub, key);
@@ -111,10 +111,7 @@ export class UploadController {
    * Ownership is enforced at the service layer.
    */
   @Delete(':key')
-  async delete(
-    @CurrentUser() user: RequestUser,
-    @Param('key') key: string,
-  ) {
+  async delete(@CurrentUser() user: RequestUser, @Param('key') key: string) {
     return this.uploadService.deleteUpload(user.sub, key);
   }
 
@@ -127,7 +124,7 @@ export class UploadController {
   async download(
     @CurrentUser() user: RequestUser,
     @Param('key') key: string,
-    @Res() res: Response,
+    @Res() res: Response
   ) {
     // Get signed access to verify ownership and token validity.
     const access = await this.uploadService.getSignedAccess(user.sub, key);
