@@ -6,7 +6,14 @@ import { dirname } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'eslint.config.mjs'] },
+  {
+    ignores: [
+      'dist/**',
+      'eslint.config.mjs',
+      'prisma.config.ts',
+      'vitest.config.ts',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
