@@ -313,13 +313,22 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
   });
 
   it('POST /auth/refresh rotates the refresh token', async () => {
+    // Capture the token BEFORE rotating so its reuse can be asserted safely.
+    const preRotationRefreshToken = refreshToken;
+
     const first = await request(server)
       .post('/auth/refresh')
       .send({ refreshToken })
       .expect(200);
     expect(typeof first.body.refreshToken).toBe('string');
-    // Rotate: store the new refresh token so subsequent tests use the current token
+    // Rotate: the service revokes the pre-rotation session on rotation.
     refreshToken = first.body.refreshToken;
+
+    // Replaying the pre-rotation token must fail: rotation revokes it.
+    await request(server)
+      .post('/auth/refresh')
+      .send({ refreshToken: preRotationRefreshToken })
+      .expect(401);
 
     // The rotated token works.
     const second = await request(server)
