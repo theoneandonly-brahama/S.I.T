@@ -8,7 +8,8 @@
 // verified together.
 
 import 'reflect-metadata';
-import 'reflect-metadata'; // Testcontainers + Prisma setup
+import './vitest.setup.js'; // Testcontainers + Prisma setup
+import './vitest.setup.js'; // Testcontainers + Prisma setup // Testcontainers + Prisma setup
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
@@ -29,11 +30,16 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
   let refreshToken = '';
 
   beforeAll(async () => {
+    // Wait for DATABASE_URL to be set by the Vitest workspace setupFiles
+    // (vitest.setup.ts spins up PostgreSQL via Testcontainers and sets DATABASE_URL;
+    // a short retry ensures the env var propagates before Nest bootstraps)
+    let retries = 0;
+    while (!process.env.DATABASE_URL && retries < 20) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      retries++;
+    }
     app = await NestFactory.create(AppModule, {
       logger: false,
-      // Re-throws initialization errors instead of calling
-      // process.abort(), so a boot failure surfaces as a normal test
-      // failure with the real message rather than a worker crash.
       abortOnError: false,
     });
     configureApp(app);
@@ -42,7 +48,7 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
   });
 
   afterAll(async () => {
-    await app?.close();;
+    await app?.close();
   });
 
   // -------------------------------------------------------------------------
