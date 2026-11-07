@@ -42,7 +42,7 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();;
   });
 
   // -------------------------------------------------------------------------
