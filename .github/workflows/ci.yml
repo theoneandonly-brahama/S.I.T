@@ -78,6 +78,11 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm --filter @sit/api exec prisma generate
         working-directory: apps/api
+        env:
+          # Prisma 7 requires DATABASE_URL for `prisma generate` even though
+          # it doesn't connect to the database. A dummy value satisfies the
+          # config validation; the real URL is set by Testcontainers in tests.
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 
       - name: Gate 3 — Type check
         id: gate3
