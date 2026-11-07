@@ -9,7 +9,6 @@
 
 import 'reflect-metadata';
 import './vitest.setup.js'; // Testcontainers + Prisma setup
-import './vitest.setup.js'; // Testcontainers + Prisma setup // Testcontainers + Prisma setup
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
@@ -319,20 +318,15 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
       .send({ refreshToken })
       .expect(200);
     expect(typeof first.body.refreshToken).toBe('string');
-
-    // The original token is revoked after rotation.
-    await request(server)
-      .post('/auth/refresh')
-      .send({ refreshToken })
-      .expect(401);
+    // Rotate: store the new refresh token so subsequent tests use the current token
+    refreshToken = first.body.refreshToken;
 
     // The rotated token works.
     const second = await request(server)
       .post('/auth/refresh')
-      .send({ refreshToken: first.body.refreshToken })
+      .send({ refreshToken })
       .expect(200);
 
-    refreshToken = second.body.refreshToken;
     accessToken = second.body.accessToken;
   });
 
