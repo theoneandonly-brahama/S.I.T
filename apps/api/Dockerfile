@@ -24,7 +24,6 @@ FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf
 RUN corepack enable
 WORKDIR /app
 
-
 COPY --from=deps /app/ ./
 
 # Copy API package manifest and source
@@ -32,6 +31,7 @@ COPY apps/api/ ./apps/api/
 COPY packages/contract/ ./packages/contract/
 COPY packages/config/ ./packages/config/
 
+RUN pnpm exec prisma generate
 RUN pnpm --filter @sit/api build
 
 # Stage 3 - production dependency closure for @sit/api only
@@ -48,18 +48,3 @@ RUN pnpm --store-dir ./pnpm-store --filter @sit/api --prod deploy --legacy /out
 # Stage 4 - Runtime (non-root)
 FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS runner
 WORKDIR /app
-ENV NODE_ENV=production
-
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nestjs
-
-
-USER nestjs
-COPY --from=prod-deps --chown=nestjs:nodejs /out/node_modules ./node_modules
-COPY --from=builder   --chown=nestjs:nodejs /app/apps/api/dist ./dist
-
-
-EXPOSE 3000
-CMD ["node", "dist/main.js"]
