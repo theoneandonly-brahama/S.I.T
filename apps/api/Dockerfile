@@ -50,11 +50,13 @@ RUN pnpm --store-dir ./pnpm-store --filter @sit/api --prod deploy --legacy /out
 
 # Prisma runtime generation inside the pruned tree:
 # - `@prisma/client` is a prod dependency, but the pruned /out does NOT ship
-#   the `prisma` CLI (devDependency) and deploy re-links from the immutable
-#   content store, which never contains the generated `.prisma` runtime files.
+#   the `prisma` CLI's generated `.prisma` runtime files (deploy re-links
+#   from the immutable content store, which never contains generated files).
 # - Generation therefore runs here, with cwd=/out so the client output
 #   resolves inside the deployed tree. DATABASE_URL is only a throwaway
 #   literal for Prisma 7 config validation (generate does not connect).
+# - The `prisma` CLI itself IS in the prod closure (runtime dependency
+#   for `migrate deploy` at container start — see CMD below).
 COPY apps/api/prisma /out/prisma
 COPY apps/api/prisma.config.ts /out/prisma.config.ts
 RUN cd /out && \
@@ -80,4 +82,9 @@ COPY --from=prod-deps --chown=nestjs:nodejs /out/node_modules ./node_modules
 COPY --from=builder   --chown=nestjs:nodejs /app/apps/api/dist ./dist
 
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# Apply database migrations before starting the API: fresh Compose
+# volumes have no tables, and the app itself does not migrate on boot.
+# The Prisma CLI ships in the prod closure (prisma is a runtime
+# dependency for exactly this reason); DATABASE_URL comes from the
+# Compose environment.
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/main.js"]
