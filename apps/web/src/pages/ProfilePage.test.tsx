@@ -120,9 +120,7 @@ describe('ProfilePage', () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByDisplayValue('Ada')
-    ).toBeTruthy();
+    expect(await screen.findByDisplayValue('Ada')).toBeTruthy();
     expect(screen.getByDisplayValue('Math, Poetry')).toBeTruthy();
     expect(screen.getByDisplayValue('https://ada.example')).toBeTruthy();
     expect(screen.getByDisplayValue('University of Tunis')).toBeTruthy();
@@ -178,10 +176,9 @@ describe('ProfilePage', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(
-      await screen.findByLabelText(/^profile photo$/i),
-      { target: { value: 'photo-1' } }
-    );
+    fireEvent.change(await screen.findByLabelText(/^profile photo$/i), {
+      target: { value: 'photo-1' },
+    });
     fireEvent.change(screen.getByLabelText(/^cv$/i), {
       target: { value: 'cv-1' },
     });

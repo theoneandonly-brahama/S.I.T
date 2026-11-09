@@ -1,7 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import type { RegistrationConfirmation } from '@sit/contract';
-import { ApiError, register, resendConfirmation, verifyEmail } from '../api/client.ts';
+import {
+  ApiError,
+  register,
+  resendConfirmation,
+  verifyEmail,
+} from '../api/client.ts';
 import PageIllustration from '../components/PageIllustration.tsx';
 import Alert from '../components/ui/Alert.tsx';
 import Button from '../components/ui/Button.tsx';
@@ -128,9 +133,7 @@ export default function RegisterPage() {
                     disabled={resendBusy}
                     onClick={resendEmail}
                   >
-                    {resendBusy
-                      ? 'Resending…'
-                      : 'Resend confirmation email'}
+                    {resendBusy ? 'Resending…' : 'Resend confirmation email'}
                   </Button>
                 </div>
               )}

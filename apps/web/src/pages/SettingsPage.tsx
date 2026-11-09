@@ -1,10 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
-import {
-  ApiError,
-  changeEmail,
-  changePassword,
-} from '../api/client.ts';
+import { ApiError, changeEmail, changePassword } from '../api/client.ts';
 import { loadSession } from '../auth/session.ts';
 import PageIllustration from '../components/PageIllustration.tsx';
 import Alert, { type AlertTone } from '../components/ui/Alert.tsx';
@@ -151,7 +147,11 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold text-ink-900 dark:text-white">
             Change password
           </h2>
-          <form onSubmit={submitPassword} className="mt-4 space-y-4" aria-busy={passwordBusy}>
+          <form
+            onSubmit={submitPassword}
+            className="mt-4 space-y-4"
+            aria-busy={passwordBusy}
+          >
             <Alert messages={passwordMessages} tone={passwordTone} />
             <Field
               label="Current password"
@@ -197,10 +197,14 @@ export default function SettingsPage() {
             Change email
           </h2>
           <p className="mt-2 text-sm text-ink-500 dark:text-ink-300">
-            Your new address must confirm before you can sign in again, and
-            all other sessions are signed out.
+            Your new address must confirm before you can sign in again, and all
+            other sessions are signed out.
           </p>
-          <form onSubmit={submitEmail} className="mt-4 space-y-4" aria-busy={emailBusy}>
+          <form
+            onSubmit={submitEmail}
+            className="mt-4 space-y-4"
+            aria-busy={emailBusy}
+          >
             <Alert messages={emailMessages} tone={emailTone} />
             <Field
               label="New email"

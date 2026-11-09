@@ -103,7 +103,8 @@ export class AuthService {
     // E1-US1 anti-enumeration: always return the same shape regardless of
     // whether the address already exists. Reuse existing account if present.
     const existing = await this.accountService.findByEmail(email);
-    const account = existing ?? await this.accountService.create(email, passwordHash);
+    const account =
+      existing ?? (await this.accountService.create(email, passwordHash));
 
     const confirmation = await this.confirmationTokenService.create(account.id);
 
@@ -207,7 +208,11 @@ export class AuthService {
       Date.now() + Number(process.env.JWT_REFRESH_TTL || 604800) * 1000
     );
 
-    await this.sessionService.create(account.id, newRefreshTokenHash, newExpiresAt);
+    await this.sessionService.create(
+      account.id,
+      newRefreshTokenHash,
+      newExpiresAt
+    );
 
     return {
       accessToken,
@@ -259,13 +264,13 @@ export class AuthService {
    *
    * @param currentPassword - The user's current password
    * @param newPassword - The new password (must meet policy: >=8 chars,
- *   at least one letter, one digit)
- * @param userId - The authenticated account ID (passed from the guard)
- * @returns { success: true } on success
- * @throws { UnauthorizedException } if the current password is incorrect
- *   or the account is not verified / is banned
- * @throws { BadRequestException } if the new password doesn't meet policy
- */
+   *   at least one letter, one digit)
+   * @param userId - The authenticated account ID (passed from the guard)
+   * @returns { success: true } on success
+   * @throws { UnauthorizedException } if the current password is incorrect
+   *   or the account is not verified / is banned
+   * @throws { BadRequestException } if the new password doesn't meet policy
+   */
   async changePassword(
     currentPassword: string,
     newPassword: string,
@@ -307,7 +312,7 @@ export class AuthService {
     // Update the account's password hash in the database.
     await this.prisma.account.update({
       where: { id: account.id },
-      data: { passwordHash: newHash }
+      data: { passwordHash: newHash },
     });
 
     return { success: true };
@@ -355,7 +360,7 @@ export class AuthService {
     // the new address must be confirmed before login is allowed again.
     await this.prisma.account.update({
       where: { id: account.id },
-      data: { email: newEmail, isVerified: false }
+      data: { email: newEmail, isVerified: false },
     });
 
     // Revoke every existing session: tokens issued under the old
@@ -364,9 +369,7 @@ export class AuthService {
     await this.sessionService.revokeAllForAccount(account.id);
 
     // Upsert a new confirmation token for the new email.
-    const confirmation = await this.confirmationTokenService.create(
-      account.id
-    );
+    const confirmation = await this.confirmationTokenService.create(account.id);
 
     // Deliver the token through the seam.
     // - Development: logs the token so the flow can be exercised locally.
@@ -374,11 +377,14 @@ export class AuthService {
     //   service).
     // - Production: a warning is logged without the token; a real mail adapter
     //   must be configured to send the email.
-    await this.confirmationDeliveryService.deliver(newEmail, confirmation.token);
+    await this.confirmationDeliveryService.deliver(
+      newEmail,
+      confirmation.token
+    );
 
     return {
       message:
-        'If an unverified account exists for this address, a confirmation token has been issued.'
+        'If an unverified account exists for this address, a confirmation token has been issued.',
     };
   }
 }

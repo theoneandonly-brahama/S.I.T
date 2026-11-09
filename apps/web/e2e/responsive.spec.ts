@@ -22,7 +22,9 @@ test('mobile: hamburger nav opens and home renders without overflow', async ({
   ).toBeVisible();
 
   const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth
   );
   expect(overflow).toBeLessThanOrEqual(1);
 });

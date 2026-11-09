@@ -34,7 +34,10 @@ async function registerConfirmLogin(
   await expect(
     page.getByRole('heading', { name: /email confirmed/i })
   ).toBeVisible();
-  await page.locator('main').getByRole('link', { name: /^sign in$/i }).click();
+  await page
+    .locator('main')
+    .getByRole('link', { name: /^sign in$/i })
+    .click();
   await page.getByLabel(/^email$/i).fill(email);
   await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole('button', { name: /^sign in$/i }).click();
@@ -44,19 +47,13 @@ async function registerConfirmLogin(
 }
 
 test('register, confirm, sign in, and create a profile', async ({ page }) => {
-  await registerConfirmLogin(
-    page,
-    `e2e_${unique}@sit.test`,
-    'Str0ngPass!23'
-  );
+  await registerConfirmLogin(page, `e2e_${unique}@sit.test`, 'Str0ngPass!23');
 
   await page.goto('/profile');
   await page.getByLabel(/^first name$/i).fill('E2E');
   await page.getByLabel(/^last name$/i).fill('Student');
   await page.getByLabel(/^skills$/i).fill('React, TypeScript');
-  await page
-    .getByRole('button', { name: /add curriculum entry/i })
-    .click();
+  await page.getByRole('button', { name: /add curriculum entry/i }).click();
   await page.getByLabel(/^institution$/i).fill('University of Tunis');
   await page.getByLabel(/^degree$/i).fill('Licence');
   await page.getByRole('button', { name: /^create profile$/i }).click();
@@ -73,7 +70,9 @@ test('settings: change password, then change email and log back in only after re
   await registerConfirmLogin(page, email, password);
 
   await page.goto('/settings');
-  await expect(page.getByRole('heading', { name: /^security$/i })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /^security$/i })
+  ).toBeVisible();
 
   // Wrong current password → uniform error, password unchanged.
   await page.getByLabel(/^current password$/i).fill('WrongPass9!');
@@ -140,13 +139,11 @@ test('uploads: purpose selection and magic-byte rejection in the browser', async
   await expect(page.getByText(/PROFILE_PHOTO/)).toBeVisible();
 
   // Declared image/png but PDF bytes → 400 from magic-byte validation.
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: 'disguised.png',
-      mimeType: 'image/png',
-      buffer: Buffer.from('%PDF-1.4'),
-    });
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'disguised.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('%PDF-1.4'),
+  });
   await page.getByRole('button', { name: /upload document/i }).click();
   await expect(page.getByText(/does not match/i)).toBeVisible();
 });
@@ -173,11 +170,7 @@ test('resend: generic message on the confirmation screen', async ({ page }) => {
 test('accessibility: no critical or serious violations on any page (light)', async ({
   page,
 }) => {
-  await registerConfirmLogin(
-    page,
-    `axe_${unique}@sit.test`,
-    'Str0ngPass!23'
-  );
+  await registerConfirmLogin(page, `axe_${unique}@sit.test`, 'Str0ngPass!23');
 
   for (const path of [
     '/',

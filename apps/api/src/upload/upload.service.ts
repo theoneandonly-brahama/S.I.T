@@ -160,8 +160,18 @@ export class UploadService {
    * Returns the absolute filesystem path for a storageKey. Intended for
    * use by a controller that streams the file after validating the
    * access token.
+   *
+   * The key is allowlist-validated here (defence in depth): storage
+   * keys are server-generated as 32 hex chars + a safe extension, so
+   * anything else — including path separators or `..` segments from a
+   * raw route parameter — is rejected before it can reach the
+   * filesystem. This also satisfies static path-injection analysis,
+   * which cannot prove the database-lookup invariant upstream.
    */
   getFilePath(storageKey: string): string {
+    if (!/^[a-f0-9]{32}\.(jpg|png|gif|webp|pdf)$/.test(storageKey)) {
+      throw new NotFoundException('Upload not found.');
+    }
     return join(this.storagePath, storageKey);
   }
 

@@ -59,20 +59,18 @@ describe('UploadPage', () => {
       purpose: 'PROFILE_PHOTO',
       createdAt: '2026-11-08T00:00:00.000Z',
     });
-    listUploadsMock
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          id: 'u1',
-          accountId: '1',
-          originalName: 'me.jpg',
-          storageKey: 'key1.jpg',
-          mimeType: 'image/jpeg',
-          size: 100,
-          purpose: 'PROFILE_PHOTO',
-          createdAt: '2026-11-08T00:00:00.000Z',
-        },
-      ]);
+    listUploadsMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        id: 'u1',
+        accountId: '1',
+        originalName: 'me.jpg',
+        storageKey: 'key1.jpg',
+        mimeType: 'image/jpeg',
+        size: 100,
+        purpose: 'PROFILE_PHOTO',
+        createdAt: '2026-11-08T00:00:00.000Z',
+      },
+    ]);
 
     render(
       <MemoryRouter>

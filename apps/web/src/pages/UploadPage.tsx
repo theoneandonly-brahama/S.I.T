@@ -137,8 +137,12 @@ export default function UploadPage() {
                   setPurpose(event.target.value as UploadPurpose)
                 }
               >
-                <option value="GENERAL">General document (image/PDF, up to 5 MB)</option>
-                <option value="PROFILE_PHOTO">Profile photo (JPEG/PNG, up to 2 MB)</option>
+                <option value="GENERAL">
+                  General document (image/PDF, up to 5 MB)
+                </option>
+                <option value="PROFILE_PHOTO">
+                  Profile photo (JPEG/PNG, up to 2 MB)
+                </option>
                 <option value="PROFILE_CV">CV (PDF, up to 5 MB)</option>
               </select>
               <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
@@ -207,7 +211,8 @@ export default function UploadPage() {
                         {upload.originalName}
                       </p>
                       <p className="text-xs text-ink-500 dark:text-ink-300">
-                        {upload.mimeType} · {upload.purpose} · {formatSize(upload.size)}
+                        {upload.mimeType} · {upload.purpose} ·{' '}
+                        {formatSize(upload.size)}
                       </p>
                     </div>
                   </div>

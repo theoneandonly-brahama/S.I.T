@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UploadService } from './upload.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -270,6 +270,22 @@ describe('UploadService', () => {
         buffer: Buffer.alloc(0),
       })
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('getFilePath accepts a server-generated key and rejects traversal', () => {
+    expect(service.getFilePath('a'.repeat(32) + '.jpg')).toMatch(
+      /uploads[/\\][a-f0-9]{32}\.jpg$/
+    );
+
+    for (const bad of [
+      '../secret.jpg',
+      '..%2fsecret.jpg',
+      'a'.repeat(32) + '.exe',
+      'not-a-generated-key',
+      'a'.repeat(31) + '.jpg',
+    ]) {
+      expect(() => service.getFilePath(bad)).toThrow(NotFoundException);
+    }
   });
 
   it('accepts a general PNG whose signature matches', async () => {

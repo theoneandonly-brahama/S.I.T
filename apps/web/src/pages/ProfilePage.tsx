@@ -47,7 +47,14 @@ const EMPTY_FORM: CreateProfileRequest = {
 
 /** 'a, b ,c' -> ['a', 'b', 'c'] (trimmed, non-empty, de-duplicated). */
 function parseList(input: string): string[] {
-  return [...new Set(input.split(',').map((part) => part.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      input
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)
+    ),
+  ];
 }
 
 function toDraft(entry: CurriculumEntry): CurriculumDraft {
@@ -298,7 +305,10 @@ export default function ProfilePage() {
                     name={`curriculum-${index}-institution`}
                     value={row.institution}
                     onChange={(event) =>
-                      updateCurriculumRow(index, 'institution')(event.target.value)
+                      updateCurriculumRow(
+                        index,
+                        'institution'
+                      )(event.target.value)
                     }
                     maxLength={200}
                     required
@@ -331,7 +341,10 @@ export default function ProfilePage() {
                       max={2100}
                       value={row.startYear}
                       onChange={(event) =>
-                        updateCurriculumRow(index, 'startYear')(event.target.value)
+                        updateCurriculumRow(
+                          index,
+                          'startYear'
+                        )(event.target.value)
                       }
                     />
                     <Field
@@ -342,7 +355,10 @@ export default function ProfilePage() {
                       max={2100}
                       value={row.endYear}
                       onChange={(event) =>
-                        updateCurriculumRow(index, 'endYear')(event.target.value)
+                        updateCurriculumRow(
+                          index,
+                          'endYear'
+                        )(event.target.value)
                       }
                     />
                   </div>
@@ -352,7 +368,9 @@ export default function ProfilePage() {
                       variant="secondary"
                       size="sm"
                       onClick={() =>
-                        setCurriculum((rows) => rows.filter((_, i) => i !== index))
+                        setCurriculum((rows) =>
+                          rows.filter((_, i) => i !== index)
+                        )
                       }
                     >
                       Remove entry
@@ -364,7 +382,9 @@ export default function ProfilePage() {
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={() => setCurriculum((rows) => [...rows, EMPTY_CURRICULUM_ROW])}
+                onClick={() =>
+                  setCurriculum((rows) => [...rows, EMPTY_CURRICULUM_ROW])
+                }
               >
                 Add curriculum entry
               </Button>
@@ -380,24 +400,21 @@ export default function ProfilePage() {
               </p>
               {(
                 [
-                  ['Profile photo', 'PROFILE_PHOTO', photoUploadId, setPhotoUploadId],
+                  [
+                    'Profile photo',
+                    'PROFILE_PHOTO',
+                    photoUploadId,
+                    setPhotoUploadId,
+                  ],
                   ['CV', 'PROFILE_CV', cvUploadId, setCvUploadId],
                 ] as Array<
-                  [
-                    string,
-                    UploadPurpose,
-                    string,
-                    (value: string) => void,
-                  ]
+                  [string, UploadPurpose, string, (value: string) => void]
                 >
               ).map(([label, purpose, value, setValue]) => {
                 const options = uploads.filter((u) => u.purpose === purpose);
                 return (
                   <div key={purpose}>
-                    <label
-                      className="form-label"
-                      htmlFor={`attach-${purpose}`}
-                    >
+                    <label className="form-label" htmlFor={`attach-${purpose}`}>
                       {label}
                     </label>
                     <select

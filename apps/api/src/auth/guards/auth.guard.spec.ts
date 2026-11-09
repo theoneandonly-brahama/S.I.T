@@ -19,7 +19,9 @@ function contextWith(headers: Record<string, string>) {
 describe('JwtAuthGuard', () => {
   it('rejects requests without an Authorization header', async () => {
     const accountService = { findById: vi.fn() } as unknown as AccountService;
-    const tokenService = { verifyAccessToken: vi.fn() } as unknown as TokenService;
+    const tokenService = {
+      verifyAccessToken: vi.fn(),
+    } as unknown as TokenService;
     const guard = new JwtAuthGuard(accountService, tokenService);
     const { context } = contextWith({});
 
@@ -30,11 +32,15 @@ describe('JwtAuthGuard', () => {
 
   it('rejects a non-Bearer Authorization header', async () => {
     const accountService = { findById: vi.fn() } as unknown as AccountService;
-    const tokenService = { verifyAccessToken: vi.fn() } as unknown as TokenService;
+    const tokenService = {
+      verifyAccessToken: vi.fn(),
+    } as unknown as TokenService;
     const guard = new JwtAuthGuard(accountService, tokenService);
     const { context } = contextWith({ authorization: 'Basic abc' });
 
-    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException
+    );
   });
 
   it('rejects an invalid or expired access token with a generic 401', async () => {
@@ -54,15 +60,21 @@ describe('JwtAuthGuard', () => {
 
   it('rejects a token whose account no longer exists', async () => {
     const accountService = {
-      findById: vi.fn().mockRejectedValue(new NotFoundException('Account not found.')),
+      findById: vi
+        .fn()
+        .mockRejectedValue(new NotFoundException('Account not found.')),
     } as unknown as AccountService;
     const tokenService = {
-      verifyAccessToken: vi.fn().mockReturnValue({ sub: 'gone', email: 'g@b.com' }),
+      verifyAccessToken: vi
+        .fn()
+        .mockReturnValue({ sub: 'gone', email: 'g@b.com' }),
     } as unknown as TokenService;
     const guard = new JwtAuthGuard(accountService, tokenService);
     const { context } = contextWith({ authorization: 'Bearer valid-looking' });
 
-    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException
+    );
   });
 
   it('rejects unverified and banned accounts with the uniform message', async () => {
@@ -74,10 +86,14 @@ describe('JwtAuthGuard', () => {
         findById: vi.fn().mockResolvedValue(account),
       } as unknown as AccountService;
       const tokenService = {
-        verifyAccessToken: vi.fn().mockReturnValue({ sub: '1', email: 'a@b.com' }),
+        verifyAccessToken: vi
+          .fn()
+          .mockReturnValue({ sub: '1', email: 'a@b.com' }),
       } as unknown as TokenService;
       const guard = new JwtAuthGuard(accountService, tokenService);
-      const { context } = contextWith({ authorization: 'Bearer valid-looking' });
+      const { context } = contextWith({
+        authorization: 'Bearer valid-looking',
+      });
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         new UnauthorizedException('Invalid credentials.')
@@ -95,7 +111,9 @@ describe('JwtAuthGuard', () => {
       }),
     } as unknown as AccountService;
     const tokenService = {
-      verifyAccessToken: vi.fn().mockReturnValue({ sub: '1', email: 'a@b.com' }),
+      verifyAccessToken: vi
+        .fn()
+        .mockReturnValue({ sub: '1', email: 'a@b.com' }),
     } as unknown as TokenService;
     const guard = new JwtAuthGuard(accountService, tokenService);
     const { context, request } = contextWith({

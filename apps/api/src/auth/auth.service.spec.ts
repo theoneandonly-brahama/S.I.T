@@ -10,13 +10,37 @@ import { TokenService } from './token.service.js';
 
 describe('AuthService', () => {
   it('returns account id and email on successful authentication', async () => {
-    const accountService = { findByEmail: vi.fn().mockResolvedValue({ id: '1', email: 'a@b.com', passwordHash: 'hash', isVerified: true }) } as unknown as AccountService;
-    const prismaService = { $connect: vi.fn(), $disconnect: vi.fn(), $executeRaw: vi.fn(), $queryRaw: vi.fn(), $transaction: vi.fn() } as unknown as PrismaService;
-    const sessionService = { findActiveByAccount: vi.fn(), create: vi.fn(), revoke: vi.fn() } as unknown as SessionService;
-    const passwordService = { hash: vi.fn().mockResolvedValue('hashed-string'), verify: vi.fn().mockResolvedValue(true) } as unknown as PasswordService;
+    const accountService = {
+      findByEmail: vi.fn().mockResolvedValue({
+        id: '1',
+        email: 'a@b.com',
+        passwordHash: 'hash',
+        isVerified: true,
+      }),
+    } as unknown as AccountService;
+    const prismaService = {
+      $connect: vi.fn(),
+      $disconnect: vi.fn(),
+      $executeRaw: vi.fn(),
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const sessionService = {
+      findActiveByAccount: vi.fn(),
+      create: vi.fn(),
+      revoke: vi.fn(),
+    } as unknown as SessionService;
+    const passwordService = {
+      hash: vi.fn().mockResolvedValue('hashed-string'),
+      verify: vi.fn().mockResolvedValue(true),
+    } as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
-    const confirmationTokenService = { create: vi.fn() } as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = { deliver: vi.fn() } as unknown as ConfirmationDeliveryService;
+    const confirmationTokenService = {
+      create: vi.fn(),
+    } as unknown as ConfirmationTokenService;
+    const confirmationDeliveryService = {
+      deliver: vi.fn(),
+    } as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -33,13 +57,29 @@ describe('AuthService', () => {
   });
 
   it('throws the same UnauthorizedException when account does not exist', async () => {
-    const accountService = { findByEmail: vi.fn().mockResolvedValue(null) } as unknown as AccountService;
-    const prismaService = { $connect: vi.fn(), $disconnect: vi.fn(), $executeRaw: vi.fn(), $queryRaw: vi.fn(), $transaction: vi.fn() } as unknown as PrismaService;
-    const sessionService = { findActiveByAccount: vi.fn(), create: vi.fn(), revoke: vi.fn() } as unknown as SessionService;
-    const passwordService = { hash: vi.fn(), verify: vi.fn() } as unknown as PasswordService;
+    const accountService = {
+      findByEmail: vi.fn().mockResolvedValue(null),
+    } as unknown as AccountService;
+    const prismaService = {
+      $connect: vi.fn(),
+      $disconnect: vi.fn(),
+      $executeRaw: vi.fn(),
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const sessionService = {
+      findActiveByAccount: vi.fn(),
+      create: vi.fn(),
+      revoke: vi.fn(),
+    } as unknown as SessionService;
+    const passwordService = {
+      hash: vi.fn(),
+      verify: vi.fn(),
+    } as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
     const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -51,17 +91,37 @@ describe('AuthService', () => {
       confirmationDeliveryService
     );
 
-    await expect(service.authenticate('nope@b.com', 'pass')).rejects.toThrow(UnauthorizedException);
+    await expect(service.authenticate('nope@b.com', 'pass')).rejects.toThrow(
+      UnauthorizedException
+    );
   });
 
   it('throws the same UnauthorizedException when password is wrong', async () => {
-    const accountService = { findByEmail: vi.fn().mockResolvedValue({ id: '1', email: 'a@b.com', passwordHash: 'hash' }) } as unknown as AccountService;
-    const prismaService = { $connect: vi.fn(), $disconnect: vi.fn(), $executeRaw: vi.fn(), $queryRaw: vi.fn(), $transaction: vi.fn() } as unknown as PrismaService;
-    const sessionService = { findActiveByAccount: vi.fn(), create: vi.fn(), revoke: vi.fn() } as unknown as SessionService;
-    const passwordService = { hash: vi.fn(), verify: vi.fn().mockResolvedValue(false) } as unknown as PasswordService;
+    const accountService = {
+      findByEmail: vi
+        .fn()
+        .mockResolvedValue({ id: '1', email: 'a@b.com', passwordHash: 'hash' }),
+    } as unknown as AccountService;
+    const prismaService = {
+      $connect: vi.fn(),
+      $disconnect: vi.fn(),
+      $executeRaw: vi.fn(),
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const sessionService = {
+      findActiveByAccount: vi.fn(),
+      create: vi.fn(),
+      revoke: vi.fn(),
+    } as unknown as SessionService;
+    const passwordService = {
+      hash: vi.fn(),
+      verify: vi.fn().mockResolvedValue(false),
+    } as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
     const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -73,17 +133,40 @@ describe('AuthService', () => {
       confirmationDeliveryService
     );
 
-    await expect(service.authenticate('a@b.com', 'wrongpass')).rejects.toThrow(UnauthorizedException);
+    await expect(service.authenticate('a@b.com', 'wrongpass')).rejects.toThrow(
+      UnauthorizedException
+    );
   });
 
   it('throws the same UnauthorizedException when the account is not verified', async () => {
-    const accountService = { findByEmail: vi.fn().mockResolvedValue({ id: '1', email: 'a@b.com', passwordHash: 'hash', isVerified: false }) } as unknown as AccountService;
-    const prismaService = { $connect: vi.fn(), $disconnect: vi.fn(), $executeRaw: vi.fn(), $queryRaw: vi.fn(), $transaction: vi.fn() } as unknown as PrismaService;
-    const sessionService = { findActiveByAccount: vi.fn(), create: vi.fn(), revoke: vi.fn() } as unknown as SessionService;
-    const passwordService = { hash: vi.fn(), verify: vi.fn().mockResolvedValue(true) } as unknown as PasswordService;
+    const accountService = {
+      findByEmail: vi.fn().mockResolvedValue({
+        id: '1',
+        email: 'a@b.com',
+        passwordHash: 'hash',
+        isVerified: false,
+      }),
+    } as unknown as AccountService;
+    const prismaService = {
+      $connect: vi.fn(),
+      $disconnect: vi.fn(),
+      $executeRaw: vi.fn(),
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const sessionService = {
+      findActiveByAccount: vi.fn(),
+      create: vi.fn(),
+      revoke: vi.fn(),
+    } as unknown as SessionService;
+    const passwordService = {
+      hash: vi.fn(),
+      verify: vi.fn().mockResolvedValue(true),
+    } as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
     const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -95,17 +178,35 @@ describe('AuthService', () => {
       confirmationDeliveryService
     );
 
-    await expect(service.authenticate('a@b.com', 'pass')).rejects.toThrow(UnauthorizedException);
+    await expect(service.authenticate('a@b.com', 'pass')).rejects.toThrow(
+      UnauthorizedException
+    );
   });
 
   it('runs argon2 against a dummy hash when account is missing (timing mitigation)', async () => {
-    const accountService = { findByEmail: vi.fn().mockResolvedValue(null) } as unknown as AccountService;
-    const prismaService = { $connect: vi.fn(), $disconnect: vi.fn(), $executeRaw: vi.fn(), $queryRaw: vi.fn(), $transaction: vi.fn() } as unknown as PrismaService;
-    const sessionService = { findActiveByAccount: vi.fn(), create: vi.fn(), revoke: vi.fn() } as unknown as SessionService;
-    const passwordService = { hash: vi.fn().mockResolvedValue('hashed-string'), verify: vi.fn() } as unknown as PasswordService;
+    const accountService = {
+      findByEmail: vi.fn().mockResolvedValue(null),
+    } as unknown as AccountService;
+    const prismaService = {
+      $connect: vi.fn(),
+      $disconnect: vi.fn(),
+      $executeRaw: vi.fn(),
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const sessionService = {
+      findActiveByAccount: vi.fn(),
+      create: vi.fn(),
+      revoke: vi.fn(),
+    } as unknown as SessionService;
+    const passwordService = {
+      hash: vi.fn().mockResolvedValue('hashed-string'),
+      verify: vi.fn(),
+    } as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
     const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -117,17 +218,45 @@ describe('AuthService', () => {
       confirmationDeliveryService
     );
 
-    await expect(service.authenticate('missing@test.com', 'pass')).rejects.toThrow(UnauthorizedException);
+    await expect(
+      service.authenticate('missing@test.com', 'pass')
+    ).rejects.toThrow(UnauthorizedException);
   });
 
   it('registers an inactive account and creates a confirmation token', async () => {
-    const accountService = { findByEmail: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: '1', email: 'new@test.com', isVerified: false }) } as unknown as AccountService;
-    const prismaService = { $connect: vi.fn(), $disconnect: vi.fn(), $executeRaw: vi.fn(), $queryRaw: vi.fn(), $transaction: vi.fn() } as unknown as PrismaService;
-    const sessionService = { findActiveByAccount: vi.fn(), create: vi.fn(), revoke: vi.fn() } as unknown as SessionService;
-    const passwordService = { hash: vi.fn(), verify: vi.fn() } as unknown as PasswordService;
+    const accountService = {
+      findByEmail: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({
+        id: '1',
+        email: 'new@test.com',
+        isVerified: false,
+      }),
+    } as unknown as AccountService;
+    const prismaService = {
+      $connect: vi.fn(),
+      $disconnect: vi.fn(),
+      $executeRaw: vi.fn(),
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const sessionService = {
+      findActiveByAccount: vi.fn(),
+      create: vi.fn(),
+      revoke: vi.fn(),
+    } as unknown as SessionService;
+    const passwordService = {
+      hash: vi.fn(),
+      verify: vi.fn(),
+    } as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
-    const confirmationTokenService = { create: vi.fn().mockResolvedValue({ token: 'token-123', expiresAt: new Date() }) } as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = { deliver: vi.fn() } as unknown as ConfirmationDeliveryService;
+    const confirmationTokenService = {
+      create: vi
+        .fn()
+        .mockResolvedValue({ token: 'token-123', expiresAt: new Date() }),
+    } as unknown as ConfirmationTokenService;
+    const confirmationDeliveryService = {
+      deliver: vi.fn(),
+    } as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -148,13 +277,32 @@ describe('AuthService', () => {
   });
 
   it('does not create a confirmation token when account creation fails', async () => {
-    const accountService = { findByEmail: vi.fn().mockResolvedValue(null), create: vi.fn().mockRejectedValue(new Error('Duplicate email')) } as unknown as AccountService;
-    const prismaService = { $connect: vi.fn(), $disconnect: vi.fn(), $executeRaw: vi.fn(), $queryRaw: vi.fn(), $transaction: vi.fn() } as unknown as PrismaService;
-    const sessionService = { findActiveByAccount: vi.fn(), create: vi.fn(), revoke: vi.fn() } as unknown as SessionService;
-    const passwordService = { hash: vi.fn(), verify: vi.fn() } as unknown as PasswordService;
+    const accountService = {
+      findByEmail: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockRejectedValue(new Error('Duplicate email')),
+    } as unknown as AccountService;
+    const prismaService = {
+      $connect: vi.fn(),
+      $disconnect: vi.fn(),
+      $executeRaw: vi.fn(),
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const sessionService = {
+      findActiveByAccount: vi.fn(),
+      create: vi.fn(),
+      revoke: vi.fn(),
+    } as unknown as SessionService;
+    const passwordService = {
+      hash: vi.fn(),
+      verify: vi.fn(),
+    } as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
-    const confirmationTokenService = { create: vi.fn() } as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationTokenService = {
+      create: vi.fn(),
+    } as unknown as ConfirmationTokenService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -166,7 +314,9 @@ describe('AuthService', () => {
       confirmationDeliveryService
     );
 
-    await expect(service.register('existing@test.com', 'pass')).rejects.toThrow(Error);
+    await expect(service.register('existing@test.com', 'pass')).rejects.toThrow(
+      Error
+    );
   });
 
   it('changePassword updates the hash when the current password matches', async () => {
@@ -191,7 +341,8 @@ describe('AuthService', () => {
     } as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
     const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -205,7 +356,10 @@ describe('AuthService', () => {
 
     const result = await service.changePassword('OldPass1!', 'NewPass2!', '1');
     expect(result).toEqual({ success: true });
-    expect(passwordService.verify).toHaveBeenCalledWith('OldPass1!', 'old-hash');
+    expect(passwordService.verify).toHaveBeenCalledWith(
+      'OldPass1!',
+      'old-hash'
+    );
     expect(passwordService.validatePassword).toHaveBeenCalledWith('NewPass2!');
     expect(prismaService.account.update).toHaveBeenCalledWith({
       where: { id: '1' },
@@ -236,7 +390,8 @@ describe('AuthService', () => {
     } as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
     const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -248,15 +403,29 @@ describe('AuthService', () => {
       confirmationDeliveryService
     );
 
-    await expect(service.changePassword('WrongPass1!', 'NewPass2!', '1')).rejects.toThrow(UnauthorizedException);
+    await expect(
+      service.changePassword('WrongPass1!', 'NewPass2!', '1')
+    ).rejects.toThrow(UnauthorizedException);
     expect(update).not.toHaveBeenCalled();
   });
 
   it('changePassword rejects missing, unverified, and banned accounts with the uniform 401', async () => {
     for (const account of [
       null,
-      { id: '1', email: 'a@b.com', passwordHash: 'hash', isVerified: false, isBanned: false },
-      { id: '1', email: 'a@b.com', passwordHash: 'hash', isVerified: true, isBanned: true },
+      {
+        id: '1',
+        email: 'a@b.com',
+        passwordHash: 'hash',
+        isVerified: false,
+        isBanned: false,
+      },
+      {
+        id: '1',
+        email: 'a@b.com',
+        passwordHash: 'hash',
+        isVerified: true,
+        isBanned: true,
+      },
     ]) {
       const accountService = {} as unknown as AccountService;
       const update = vi.fn();
@@ -270,8 +439,10 @@ describe('AuthService', () => {
         hash: vi.fn(),
       } as unknown as PasswordService;
       const tokenService = {} as unknown as TokenService;
-      const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-      const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+      const confirmationTokenService =
+        {} as unknown as ConfirmationTokenService;
+      const confirmationDeliveryService =
+        {} as unknown as ConfirmationDeliveryService;
 
       const service = new AuthService(
         accountService,
@@ -283,7 +454,9 @@ describe('AuthService', () => {
         confirmationDeliveryService
       );
 
-      await expect(service.changePassword('OldPass1!', 'NewPass2!', '1')).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.changePassword('OldPass1!', 'NewPass2!', '1')
+      ).rejects.toThrow(UnauthorizedException);
       expect(update).not.toHaveBeenCalled();
     }
   });
@@ -308,9 +481,13 @@ describe('AuthService', () => {
     const passwordService = {} as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
     const confirmationTokenService = {
-      create: vi.fn().mockResolvedValue({ token: 'token-123', expiresAt: new Date() }),
+      create: vi
+        .fn()
+        .mockResolvedValue({ token: 'token-123', expiresAt: new Date() }),
     } as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = { deliver: vi.fn().mockResolvedValue(undefined) } as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService = {
+      deliver: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -329,15 +506,30 @@ describe('AuthService', () => {
       data: { email: 'new@b.com', isVerified: false },
     });
     expect(confirmationTokenService.create).toHaveBeenCalledWith('1');
-    expect(confirmationDeliveryService.deliver).toHaveBeenCalledWith('new@b.com', 'token-123');
+    expect(confirmationDeliveryService.deliver).toHaveBeenCalledWith(
+      'new@b.com',
+      'token-123'
+    );
     expect(revokeAllForAccount).toHaveBeenCalledWith('1');
   });
 
   it('changeEmail rejects missing, unverified, and banned accounts with the uniform 401', async () => {
     for (const account of [
       null,
-      { id: '1', email: 'a@b.com', passwordHash: 'hash', isVerified: false, isBanned: false },
-      { id: '1', email: 'a@b.com', passwordHash: 'hash', isVerified: true, isBanned: true },
+      {
+        id: '1',
+        email: 'a@b.com',
+        passwordHash: 'hash',
+        isVerified: false,
+        isBanned: false,
+      },
+      {
+        id: '1',
+        email: 'a@b.com',
+        passwordHash: 'hash',
+        isVerified: true,
+        isBanned: true,
+      },
     ]) {
       const accountService = {} as unknown as AccountService;
       const update = vi.fn();
@@ -347,8 +539,12 @@ describe('AuthService', () => {
       const sessionService = {} as unknown as SessionService;
       const passwordService = {} as unknown as PasswordService;
       const tokenService = {} as unknown as TokenService;
-      const confirmationTokenService = { create: vi.fn() } as unknown as ConfirmationTokenService;
-      const confirmationDeliveryService = { deliver: vi.fn() } as unknown as ConfirmationDeliveryService;
+      const confirmationTokenService = {
+        create: vi.fn(),
+      } as unknown as ConfirmationTokenService;
+      const confirmationDeliveryService = {
+        deliver: vi.fn(),
+      } as unknown as ConfirmationDeliveryService;
 
       const service = new AuthService(
         accountService,
@@ -360,7 +556,9 @@ describe('AuthService', () => {
         confirmationDeliveryService
       );
 
-      await expect(service.changeEmail('new@b.com', '1')).rejects.toThrow(UnauthorizedException);
+      await expect(service.changeEmail('new@b.com', '1')).rejects.toThrow(
+        UnauthorizedException
+      );
       expect(update).not.toHaveBeenCalled();
       expect(confirmationTokenService.create).not.toHaveBeenCalled();
     }
@@ -368,12 +566,17 @@ describe('AuthService', () => {
 
   it('refresh rejects a garbage token with no subject', async () => {
     const accountService = {} as unknown as AccountService;
-    const prismaService = { account: { findUnique: vi.fn() } } as unknown as PrismaService;
-    const sessionService = { findActiveByAccount: vi.fn() } as unknown as SessionService;
+    const prismaService = {
+      account: { findUnique: vi.fn() },
+    } as unknown as PrismaService;
+    const sessionService = {
+      findActiveByAccount: vi.fn(),
+    } as unknown as SessionService;
     const passwordService = {} as unknown as PasswordService;
     const tokenService = {} as unknown as TokenService;
     const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -385,7 +588,9 @@ describe('AuthService', () => {
       confirmationDeliveryService
     );
 
-    await expect(service.refresh('garbage-token')).rejects.toThrow(UnauthorizedException);
+    await expect(service.refresh('garbage-token')).rejects.toThrow(
+      UnauthorizedException
+    );
   });
 
   it('refresh rejects a banned, unverified, or missing account with the uniform 401', async () => {
@@ -398,11 +603,15 @@ describe('AuthService', () => {
       const prismaService = {
         account: { findUnique: vi.fn().mockResolvedValue(account) },
       } as unknown as PrismaService;
-      const sessionService = { findActiveByAccount: vi.fn() } as unknown as SessionService;
+      const sessionService = {
+        findActiveByAccount: vi.fn(),
+      } as unknown as SessionService;
       const passwordService = {} as unknown as PasswordService;
       const tokenService = new TokenService();
-      const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-      const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+      const confirmationTokenService =
+        {} as unknown as ConfirmationTokenService;
+      const confirmationDeliveryService =
+        {} as unknown as ConfirmationDeliveryService;
 
       const service = new AuthService(
         accountService,
@@ -415,7 +624,9 @@ describe('AuthService', () => {
       );
 
       const token = tokenService.signRefreshToken({ sub: '1' });
-      await expect(service.refresh(token)).rejects.toThrow(UnauthorizedException);
+      await expect(service.refresh(token)).rejects.toThrow(
+        UnauthorizedException
+      );
     }
   });
 
@@ -438,15 +649,16 @@ describe('AuthService', () => {
     const revoke = vi.fn().mockResolvedValue(undefined);
     const create = vi.fn().mockResolvedValue({ id: '2' });
     const sessionService = {
-      findActiveByAccount: vi.fn().mockResolvedValue([
-        { id: 's1', refreshTokenHash: hash },
-      ]),
+      findActiveByAccount: vi
+        .fn()
+        .mockResolvedValue([{ id: 's1', refreshTokenHash: hash }]),
       revoke,
       create,
     } as unknown as SessionService;
     const passwordService = {} as unknown as PasswordService;
     const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
 
     const service = new AuthService(
       accountService,
@@ -463,7 +675,11 @@ describe('AuthService', () => {
     expect(typeof result.refreshToken).toBe('string');
     expect(result.refreshToken).not.toBe(refreshToken);
     expect(revoke).toHaveBeenCalledWith('s1');
-    expect(create).toHaveBeenCalledWith('1', expect.any(String), expect.any(Date));
+    expect(create).toHaveBeenCalledWith(
+      '1',
+      expect.any(String),
+      expect.any(Date)
+    );
   });
 
   it('logout rejects a garbage token and revokes a matching session', async () => {
@@ -473,10 +689,14 @@ describe('AuthService', () => {
     {
       const accountService = {} as unknown as AccountService;
       const prismaService = {} as unknown as PrismaService;
-      const sessionService = { findActiveByAccount: vi.fn() } as unknown as SessionService;
+      const sessionService = {
+        findActiveByAccount: vi.fn(),
+      } as unknown as SessionService;
       const passwordService = {} as unknown as PasswordService;
-      const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-      const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+      const confirmationTokenService =
+        {} as unknown as ConfirmationTokenService;
+      const confirmationDeliveryService =
+        {} as unknown as ConfirmationDeliveryService;
       const service = new AuthService(
         accountService,
         prismaService,
@@ -486,7 +706,9 @@ describe('AuthService', () => {
         confirmationTokenService,
         confirmationDeliveryService
       );
-      await expect(service.logout('garbage-token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.logout('garbage-token')).rejects.toThrow(
+        UnauthorizedException
+      );
     }
 
     // Matching session → revoked, resolves void
@@ -496,14 +718,15 @@ describe('AuthService', () => {
     const prismaService = {} as unknown as PrismaService;
     const revoke = vi.fn().mockResolvedValue(undefined);
     const sessionService = {
-      findActiveByAccount: vi.fn().mockResolvedValue([
-        { id: 's1', refreshTokenHash: hash },
-      ]),
+      findActiveByAccount: vi
+        .fn()
+        .mockResolvedValue([{ id: 's1', refreshTokenHash: hash }]),
       revoke,
     } as unknown as SessionService;
     const passwordService = {} as unknown as PasswordService;
     const confirmationTokenService = {} as unknown as ConfirmationTokenService;
-    const confirmationDeliveryService = {} as unknown as ConfirmationDeliveryService;
+    const confirmationDeliveryService =
+      {} as unknown as ConfirmationDeliveryService;
     const service = new AuthService(
       accountService,
       prismaService,

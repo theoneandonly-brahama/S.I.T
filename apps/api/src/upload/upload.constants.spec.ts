@@ -10,10 +10,7 @@ describe('matchesMimeMagic', () => {
 
   it('rejects a PNG buffer declared as JPEG', () => {
     expect(
-      matchesMimeMagic(
-        Buffer.from('89504e470d0a1a0a', 'hex'),
-        'image/jpeg'
-      )
+      matchesMimeMagic(Buffer.from('89504e470d0a1a0a', 'hex'), 'image/jpeg')
     ).toBe(false);
   });
 
@@ -78,9 +75,7 @@ describe('matchesMimeMagic', () => {
   });
 
   it('rejects a short RIFF buffer without room for the WEBP chunk', () => {
-    expect(
-      matchesMimeMagic(Buffer.from('RIFFWEBP'), 'image/webp')
-    ).toBe(false);
+    expect(matchesMimeMagic(Buffer.from('RIFFWEBP'), 'image/webp')).toBe(false);
   });
 
   it('accepts a PDF buffer', () => {
