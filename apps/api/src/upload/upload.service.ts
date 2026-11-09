@@ -9,12 +9,19 @@ import { randomBytes } from 'crypto';
 import { createWriteStream, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { UploadPurpose } from '@prisma/client';
 import {
   UploadResponseDto,
   UploadSignedAccessDto,
   ALLOWED_MIME_TYPES,
-  AllowedMimeType,
 } from './dto/upload.dto.js';
+import {
+  PROFILE_CV_MAX_SIZE,
+  PROFILE_CV_MIME_TYPES,
+  PROFILE_PHOTO_MAX_SIZE,
+  PROFILE_PHOTO_MIME_TYPES,
+  matchesMimeMagic,
+} from './upload.constants.js';
 
 /**
  * UploadService handles private file uploads with size caps, content-type
@@ -44,9 +51,10 @@ export class UploadService {
   /**
    * Uploads a file for an account.
    *
-   * Validates:
-   *   - File size against UPLOAD_MAX_SIZE
-   *   - MIME type against the allowlist (images + PDF only)
+   * Validates against the policy of the requested slot:
+   *   - GENERAL: UPLOAD_MAX_SIZE, images + PDF allowlist
+   *   - PROFILE_PHOTO: 2 MB, JPEG/PNG only
+   *   - PROFILE_CV: 5 MB, PDF only
    *
    * Stores the file under a random storageKey and creates an Upload
    * record linked to the account. Returns safe metadata without the
@@ -59,19 +67,31 @@ export class UploadService {
       mimetype: string;
       size: number;
       buffer: Buffer;
-    }
+    },
+    purpose: UploadPurpose = 'GENERAL'
   ): Promise<UploadResponseDto> {
-    // Size cap enforcement.
-    if (file.size > this.maxSize) {
+    const policy = this.policyFor(purpose);
+
+    // Size cap enforcement for the selected slot.
+    if (file.size > policy.maxSize) {
       throw new BadRequestException(
-        `File too large. Maximum size is ${this.maxSize} bytes (${Math.round(this.maxSize / 1024 / 1024)} MB).`
+        `File too large. Maximum size is ${policy.maxSize} bytes (${Math.round(policy.maxSize / 1024 / 1024)} MB).`
       );
     }
 
-    // Content-type verification against allowlist.
-    if (!ALLOWED_MIME_TYPES.includes(file.mimetype as AllowedMimeType)) {
+    // Content-type verification against the selected slot's allowlist.
+    if (!policy.allowedMimeTypes.includes(file.mimetype)) {
       throw new BadRequestException(
-        `File type '${file.mimetype}' is not allowed. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}.`
+        `File type '${file.mimetype}' is not allowed. Allowed types: ${policy.allowedMimeTypes.join(', ')}.`
+      );
+    }
+
+    // Magic-byte verification: the file's leading bytes must match the
+    // signature of the declared type. The declared Content-Type alone
+    // is client-supplied and can lie (a script renamed to .png).
+    if (!matchesMimeMagic(file.buffer, file.mimetype)) {
+      throw new BadRequestException(
+        `File content does not match the declared type '${file.mimetype}'.`
       );
     }
 
@@ -91,6 +111,7 @@ export class UploadService {
         storageKey,
         mimeType: file.mimetype,
         size: file.size,
+        purpose,
       },
     });
 
@@ -129,6 +150,7 @@ export class UploadService {
       storageKey: upload.storageKey,
       mimeType: upload.mimeType,
       size: upload.size,
+      purpose: upload.purpose,
       accessToken,
       expiresAt,
     };
@@ -180,6 +202,35 @@ export class UploadService {
   // Private helpers
   // -----------------------------------------------------------------------
 
+  /**
+   * Returns the size and MIME policy for a slot. The upload endpoint is
+   * the primary enforcement point; the profile attachment check repeats
+   * the same limits as a second trust boundary.
+   */
+  private policyFor(purpose: UploadPurpose): {
+    maxSize: number;
+    allowedMimeTypes: readonly string[];
+  } {
+    switch (purpose) {
+      case 'PROFILE_PHOTO':
+        return {
+          maxSize: PROFILE_PHOTO_MAX_SIZE,
+          allowedMimeTypes: PROFILE_PHOTO_MIME_TYPES,
+        };
+      case 'PROFILE_CV':
+        return {
+          maxSize: PROFILE_CV_MAX_SIZE,
+          allowedMimeTypes: PROFILE_CV_MIME_TYPES,
+        };
+      case 'GENERAL':
+      default:
+        return {
+          maxSize: this.maxSize,
+          allowedMimeTypes: ALLOWED_MIME_TYPES,
+        };
+    }
+  }
+
   private safeExtension(originalName: string, mimeType: string): string {
     // Derive a safe extension from the MIME type, not the original filename,
     // to prevent double-extension attacks (e.g. "photo.jpg.php").
@@ -207,6 +258,7 @@ export class UploadService {
     storageKey: string;
     mimeType: string;
     size: number;
+    purpose: UploadPurpose;
     createdAt: Date;
   }): UploadResponseDto {
     return {
@@ -216,6 +268,7 @@ export class UploadService {
       storageKey: upload.storageKey,
       mimeType: upload.mimeType,
       size: upload.size,
+      purpose: upload.purpose,
       createdAt: upload.createdAt,
     };
   }

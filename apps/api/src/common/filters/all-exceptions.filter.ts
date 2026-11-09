@@ -27,7 +27,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let message = 'Internal server error.';
     let error = 'InternalServerError';
 
-    if (exception instanceof HttpException) {
+    // Multer rejects an oversized multipart body before the controller
+    // runs. Map its file-size error to 413 instead of the generic 500.
+    const multerError = exception as { name?: string; code?: string };
+    const isMulterFileTooLarge =
+      exception instanceof Error &&
+      multerError.name === 'MulterError' &&
+      multerError.code === 'LIMIT_FILE_SIZE';
+
+    if (isMulterFileTooLarge) {
+      status = HttpStatus.PAYLOAD_TOO_LARGE;
+      message = 'File too large.';
+      error = 'PayloadTooLarge';
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exResponse = exception.getResponse();
 

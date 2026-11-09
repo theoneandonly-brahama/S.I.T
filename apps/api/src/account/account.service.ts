@@ -53,6 +53,11 @@ export class AccountService {
    * email uniqueness at the application layer so a collision surfaces
    * as ConflictException instead of a raw Prisma error. Returns the
    * safe representation (no passwordHash).
+   *
+   * NOTE: the HTTP layer (UpdateAccountDto) no longer exposes `email`
+   * — email changes must go through AuthService.changeEmail so that
+   * isVerified is reset and a re-verification token is issued. This
+   * method's email support remains for future internal callers only.
    */
   async update(
     id: string,

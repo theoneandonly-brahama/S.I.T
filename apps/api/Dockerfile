@@ -32,6 +32,10 @@ COPY packages/contract/ ./packages/contract/
 COPY packages/config/ ./packages/config/
 
 RUN DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy pnpm --filter @sit/api exec prisma generate
+# Force a clean, non-incremental emit. A copied tsconfig.tsbuildinfo makes
+# tsc skip re-emitting unchanged files into the empty dist/ directory,
+# producing an image whose dist is missing modules at runtime.
+RUN rm -f apps/api/tsconfig.tsbuildinfo && rm -rf apps/api/dist
 RUN pnpm --filter @sit/api build
 
 # Stage 3 - production dependency closure for @sit/api only
@@ -67,6 +71,9 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nestjs
+# UploadService creates this directory at construction time. /app is owned
+# by root, so the non-root runtime user cannot mkdir it at startup.
+RUN mkdir -p /app/uploads && chown nestjs:nodejs /app/uploads
 
 USER nestjs
 COPY --from=prod-deps --chown=nestjs:nodejs /out/node_modules ./node_modules

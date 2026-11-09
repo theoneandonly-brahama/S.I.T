@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { decode } from 'jsonwebtoken';
+import { decode, sign } from 'jsonwebtoken';
+import { UnauthorizedException } from '@nestjs/common';
 import { TokenService } from './token.service.js';
 
 describe('TokenService', () => {
@@ -36,6 +37,50 @@ describe('TokenService', () => {
       expect(typeof first.jti).toBe('string');
       expect(typeof second.jti).toBe('string');
       expect(first.jti).not.toBe(second.jti);
+    });
+  });
+
+  describe('verifyAccessToken', () => {
+    it('returns the payload for a valid token', () => {
+      const token = sign(
+        { sub: 'acc-1', email: 'a@b.com' },
+        'change-me-in-production-32-chars-min',
+        { expiresIn: 900, issuer: 'sit-api', audience: 'sit-client' }
+      );
+
+      const payload = service.verifyAccessToken(token);
+      expect(payload.sub).toBe('acc-1');
+      expect(payload.email).toBe('a@b.com');
+    });
+
+    it('throws the expired message for an expired token', () => {
+      const token = sign(
+        { sub: 'acc-1', email: 'a@b.com' },
+        'change-me-in-production-32-chars-min',
+        { expiresIn: -10, issuer: 'sit-api', audience: 'sit-client' }
+      );
+
+      expect(() => service.verifyAccessToken(token)).toThrow(
+        new UnauthorizedException('Access token expired.')
+      );
+    });
+
+    it('throws the invalid message for a malformed token', () => {
+      expect(() => service.verifyAccessToken('not-a-jwt')).toThrow(
+        new UnauthorizedException('Invalid access token.')
+      );
+    });
+
+    it('throws the invalid message for a token signed with the wrong secret', () => {
+      const token = sign(
+        { sub: 'acc-1', email: 'a@b.com' },
+        'some-other-secret-that-is-long-enough',
+        { expiresIn: 900, issuer: 'sit-api', audience: 'sit-client' }
+      );
+
+      expect(() => service.verifyAccessToken(token)).toThrow(
+        new UnauthorizedException('Invalid access token.')
+      );
     });
   });
 });

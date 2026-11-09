@@ -8,6 +8,9 @@ export default defineConfig({
     // integration tests chain multiple hashes/verifications, so the
     // default 5 s per-test timeout would produce flaky failures.
     testTimeout: 30000,
+    // Stryker sandboxes (.stryker-tmp/) contain mutated copies of every
+    // spec; they must never be collected by a normal `pnpm test` run.
+    exclude: ['**/node_modules/**', '**/.stryker-tmp/**'],
     // Package-specific test config goes here when needed.
     // Do NOT set `reporters` at package level — the root
     // vitest.config.ts governs the reporter for the whole workspace.

@@ -197,6 +197,19 @@ jobs:
             echo "| 4 — Tests | ${{ steps.gate4.outcome == 'success' && 'passed' || 'failed' }} |"
             echo "| 6 — Build | ${{ steps.gate6.outcome == 'success' && 'passed' || 'failed' }} |"
             echo "| 8 — Compose | ${{ steps.gate8.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo ""
+            echo "### Test results (Gate 4)"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            grep -E "Test Files|Tests " test.log 2>/dev/null | tail -4 | sed 's/^/| /; s/$/ |/' || echo "| (no test log) | |"
+            echo ""
+            echo "### Coverage (Gate 4, v8)"
+            echo ""
+            echo "| Metric | Statements | Branches | Functions | Lines |"
+            echo "|--------|------------|----------|-----------|-------|"
+            # Coverage final table "All files" row (strip ANSI, pad columns).
+            grep -E "All files" test.log 2>/dev/null | tail -1 | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\|/|/g' | awk -F'|' '{printf "| Overall | %s | %s | %s | %s |\n", $2, $3, $4, $5}' || echo "| (no coverage row in log) | | | | |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # ── NEW: collapsible per-gate content, same pattern as the Trivy block ──
@@ -230,6 +243,174 @@ jobs:
           publish "Gate 4 — Vitest Tests" test.log
           publish "Gate 6 — Build" build.log 300
           publish "Gate 8 — Compose" gate-8.log
+
+  # ----- Gate 7: Browser E2E (Playwright + axe against the Compose stack) --
+  e2e:
+    name: Browser E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      NO_COLOR: '1'
+      FORCE_COLOR: '0'
+      # E2E drives many requests from one IP; the production throttler
+      # (10/min/route) would 429 the later tests. Raising it for this
+      # job only; the shipped Compose default stays 10.
+      THROTTLE_LIMIT: '1000'
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start Postgres and API (Compose)
+        run: |
+          docker compose -f infrastructure/docker-compose.yml up -d --build postgres api
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3000/health > /dev/null; then
+              echo "api healthy"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:3000/health
+
+      - name: Install Playwright browsers
+        run: |
+          key=$(node -e "console.log(require('./apps/web/package.json').devDependencies['@playwright/test'])")
+          cache_dir="$HOME/.cache/ms-playwright"
+          if [ -d "$cache_dir" ] && [ "$(find "$cache_dir" -maxdepth 1 -name 'chromium-*' | wc -l)" -gt 0 ]; then
+            echo "playwright browser cache hit"
+          else
+            pnpm --filter @sit/web exec playwright install --with-deps chromium
+          fi
+
+      - name: Gate 7 — Browser E2E
+        id: gate7
+        run: pnpm --filter @sit/web test:e2e 2>&1 | tee e2e.log
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: gate-7-e2e-report
+          path: |
+            e2e.log
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: warn
+
+      - name: Summary — E2E
+        if: always()
+        run: |
+          {
+            echo "## CI Pipeline — Browser E2E (Gate 7)"
+            echo ""
+            echo "Overall: ${{ steps.gate7.outcome == 'success' && 'passed' || 'failed' }}"
+            echo ""
+            echo "| Suite | Status |"
+            echo "|-------|--------|"
+            echo "| Playwright journeys + axe + mobile | ${{ steps.gate7.outcome == 'success' && 'passed' || 'failed' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -s e2e.log ]; then
+            {
+              echo ""
+              echo "<details><summary>E2E log</summary>"
+              echo ""
+              echo '```'
+              tail -n 60 e2e.log
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ----- Gate 9: Mutation testing (non-blocking calibration) ----------------
+  mutation:
+    name: Mutation Testing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    continue-on-error: true
+    env:
+      NO_COLOR: '1'
+      FORCE_COLOR: '0'
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @sit/api exec prisma generate
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
+      - name: Gate 9 — Mutation testing (pure-logic scope)
+        id: gate9
+        run: |
+          cd apps/api
+          npx stryker run 2>&1 | tee mutation.log
+
+      - name: Upload mutation artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: gate-9-mutation-report
+          path: |
+            apps/api/mutation.log
+            apps/api/reports/
+          if-no-files-found: warn
+
+      - name: Summary — Mutation
+        if: always()
+        run: |
+          {
+            echo "## CI Pipeline — Mutation Testing (Gate 9, non-blocking)"
+            echo ""
+            echo "Overall: ${{ steps.gate9.outcome == 'success' && 'completed' || 'failed (non-blocking)' }}"
+            echo ""
+            echo "| Scope | Status |"
+            echo "|-------|--------|"
+            echo "| token.service + password.service + upload.constants | ${{ steps.gate9.outcome == 'success' && 'completed' || 'see log' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -s apps/api/mutation.log ]; then
+            {
+              echo ""
+              echo "<details><summary>Mutation score table</summary>"
+              echo ""
+              echo '```'
+              grep -A12 "Mutation score" apps/api/mutation.log || tail -n 30 apps/api/mutation.log
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   security:
     name: Security & Supply Chain

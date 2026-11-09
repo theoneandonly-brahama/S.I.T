@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     projects: ['apps/*', 'packages/*'],
     reporters: ['default', 'junit'],
+    // Stryker mutation sandboxes must never be collected as test files.
+    exclude: ['**/node_modules/**', '**/.stryker-tmp/**'],
     coverage: {
       enabled: true,
       provider: 'v8',
@@ -13,6 +15,7 @@ export default defineConfig({
       exclude: [
         '**/*.spec.ts',
         '**/*.integration.spec.ts',
+        '**/.stryker-tmp/**',
         'apps/api/src/main.ts',
         'apps/api/src/**/dto/*.ts',
       ],

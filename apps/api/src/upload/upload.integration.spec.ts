@@ -11,6 +11,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../app.module.js';
 import { configureApp } from '../common/configure-app.js';
+import { PROFILE_PHOTO_MAX_SIZE } from './upload.constants.js';
 
 describe('Upload endpoints (integration, real PostgreSQL + disk)', () => {
   let app: INestApplication;
@@ -23,10 +24,36 @@ describe('Upload endpoints (integration, real PostgreSQL + disk)', () => {
 
   let ownerToken = '';
   let intruderToken = '';
+  let profilePhotoKey = '';
+  let profileCvKey = '';
 
   // Minimal PNG payload — the service validates the declared MIME type,
   // not the file content.
   const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+
+  /**
+   * Registers an account, confirms it, and returns a login access token.
+   * Registration no longer issues a session, so every authenticated
+   * fixture must pass through the confirmation endpoint first.
+   */
+  async function registerAndLogin(email: string): Promise<string> {
+    const registration = await request(server)
+      .post('/auth/register')
+      .send({ email, password })
+      .expect(201);
+
+    await request(server)
+      .get('/confirmation-token/verify')
+      .query({ token: registration.body.confirmation.token })
+      .expect(200);
+
+    const login = await request(server)
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    return login.body.accessToken;
+  }
 
   beforeAll(async () => {
     app = await NestFactory.create(AppModule, {
@@ -40,20 +67,20 @@ describe('Upload endpoints (integration, real PostgreSQL + disk)', () => {
     await app.init();
     server = app.getHttpServer();
 
-    const owner = await request(server)
-      .post('/auth/register')
-      .send({ email: ownerEmail, password })
-      .expect(201);
-    ownerToken = owner.body.accessToken;
-
-    const intruder = await request(server)
-      .post('/auth/register')
-      .send({ email: intruderEmail, password })
-      .expect(201);
-    intruderToken = intruder.body.accessToken;
+    ownerToken = await registerAndLogin(ownerEmail);
+    intruderToken = await registerAndLogin(intruderEmail);
   });
 
   afterAll(async () => {
+    if (server && ownerToken) {
+      for (const key of [profilePhotoKey, profileCvKey]) {
+        if (key) {
+          await request(server)
+            .delete(`/upload/${key}`)
+            .set('Authorization', `Bearer ${ownerToken}`);
+        }
+      }
+    }
     await app.close();
   });
 
@@ -93,6 +120,7 @@ describe('Upload endpoints (integration, real PostgreSQL + disk)', () => {
     expect(res.body.mimeType).toBe('image/png');
     expect(res.body.size).toBe(png.length);
     expect(res.body.originalName).toBe('photo.png');
+    expect(res.body.purpose).toBe('GENERAL');
     expect(res.body.storageKey).toMatch(/^[a-f0-9]+\.png$/);
     expect(res.body).not.toHaveProperty('path');
 
@@ -162,5 +190,98 @@ describe('Upload endpoints (integration, real PostgreSQL + disk)', () => {
       .get(`/upload/${storageKey}/signed-access`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(404);
+  });
+
+  it('POST /upload with purpose=PROFILE_PHOTO stores the slot', async () => {
+    const res = await request(server)
+      .post('/upload')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .field('purpose', 'PROFILE_PHOTO')
+      .attach('file', png, { filename: 'avatar.png', contentType: 'image/png' })
+      .expect(201);
+
+    expect(res.body.purpose).toBe('PROFILE_PHOTO');
+    expect(res.body.storageKey).toMatch(/^[a-f0-9]+\.png$/);
+    profilePhotoKey = res.body.storageKey;
+  });
+
+  it('POST /upload with purpose=PROFILE_PHOTO rejects an image above 2 MB', async () => {
+    const res = await request(server)
+      .post('/upload')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .field('purpose', 'PROFILE_PHOTO')
+      .attach('file', Buffer.alloc(PROFILE_PHOTO_MAX_SIZE + 1), {
+        filename: 'too-big.png',
+        contentType: 'image/png',
+      })
+      .expect(400);
+
+    expect(res.body.message).toContain('too large');
+  });
+
+  it('POST /upload with purpose=PROFILE_PHOTO rejects a PDF', async () => {
+    const res = await request(server)
+      .post('/upload')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .field('purpose', 'PROFILE_PHOTO')
+      .attach('file', Buffer.from('%PDF-1.4'), {
+        filename: 'not-a-photo.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+
+    expect(res.body.message).toContain('not allowed');
+  });
+
+  it('POST /upload with purpose=PROFILE_CV stores the slot', async () => {
+    const res = await request(server)
+      .post('/upload')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .field('purpose', 'PROFILE_CV')
+      .attach('file', Buffer.from('%PDF-1.4'), {
+        filename: 'cv.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+
+    expect(res.body.purpose).toBe('PROFILE_CV');
+    expect(res.body.storageKey).toMatch(/^[a-f0-9]+\.pdf$/);
+    profileCvKey = res.body.storageKey;
+  });
+
+  it('POST /upload with purpose=PROFILE_CV rejects a PNG', async () => {
+    const res = await request(server)
+      .post('/upload')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .field('purpose', 'PROFILE_CV')
+      .attach('file', png, { filename: 'cv.png', contentType: 'image/png' })
+      .expect(400);
+
+    expect(res.body.message).toContain('not allowed');
+  });
+
+  it('POST /upload rejects content whose magic bytes do not match the declared type', async () => {
+    // Declared as a profile photo (image/png) but the bytes are a PDF:
+    // the declared type passes the allowlist, the magic bytes do not.
+    const res = await request(server)
+      .post('/upload')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .field('purpose', 'PROFILE_PHOTO')
+      .attach('file', Buffer.from('%PDF-1.4'), {
+        filename: 'disguised.png',
+        contentType: 'image/png',
+      })
+      .expect(400);
+
+    expect(res.body.message).toContain('does not match');
+  });
+
+  it('POST /upload rejects an unknown purpose with 400', async () => {
+    await request(server)
+      .post('/upload')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .field('purpose', 'NOT_A_PURPOSE')
+      .attach('file', png, { filename: 'photo.png', contentType: 'image/png' })
+      .expect(400);
   });
 });

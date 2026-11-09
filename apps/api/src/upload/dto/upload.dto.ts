@@ -1,3 +1,16 @@
+import { IsEnum, IsOptional } from 'class-validator';
+import { UploadPurpose } from '@prisma/client';
+
+/**
+ * UploadFileDto is the multipart text body for POST /upload.
+ * `purpose` selects the slot policy; omitting it means GENERAL.
+ */
+export class UploadFileDto {
+  @IsOptional()
+  @IsEnum(UploadPurpose)
+  purpose?: UploadPurpose;
+}
+
 /**
  * UploadResponseDto is the safe representation of an Upload returned
  * to callers after a successful upload. It exposes metadata but not
@@ -10,6 +23,7 @@ export class UploadResponseDto {
   storageKey: string;
   mimeType: string;
   size: number;
+  purpose: UploadPurpose;
   createdAt: Date;
 }
 
@@ -25,13 +39,15 @@ export class UploadSignedAccessDto {
   storageKey: string;
   mimeType: string;
   size: number;
+  purpose: UploadPurpose;
   accessToken: string;
   expiresAt: Date;
 }
 
 /**
- * Allowed MIME types for uploads. Keep this conservative: images and
- * PDFs only. Executables, scripts, and archives are rejected.
+ * Allowed MIME types for general uploads. Keep this conservative:
+ * images and PDFs only. Executables, scripts, and archives are rejected.
+ * Profile slots narrow this further in `upload.constants.ts`.
  */
 export const ALLOWED_MIME_TYPES = [
   'image/jpeg',

@@ -39,6 +39,10 @@ describe('PasswordService', () => {
     expect(await service.verify('WrongP@ss1', hash)).toBe(false);
   });
 
+  it('rejects an empty password as required', async () => {
+    await expect(service.hash('')).rejects.toThrow('Password is required.');
+  });
+
   it('returns false for a malformed hash instead of throwing', async () => {
     expect(await service.verify('anything', 'not-a-valid-hash')).toBe(false);
   });

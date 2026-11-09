@@ -1,11 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import {
-  sign,
-  verify,
-  JsonWebTokenError,
-  TokenExpiredError,
-} from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
+
+const { sign, verify, TokenExpiredError } = jwt;
 
 /**
  * TokenService issues and verifies short-lived JWT access tokens and
@@ -83,11 +80,13 @@ export class TokenService {
       }) as { sub: string; email: string; iat: number; exp: number };
       return payload;
     } catch (err) {
+      // Expired tokens get a distinct message; every other verification
+      // failure (malformed, bad signature, wrong issuer/audience) gets
+      // the uniform invalid message. The JsonWebTokenError distinction
+      // was removed: both branches threw the same message, making the
+      // mutant-killing impossible and the branch dead weight.
       if (err instanceof TokenExpiredError) {
         throw new UnauthorizedException('Access token expired.');
-      }
-      if (err instanceof JsonWebTokenError) {
-        throw new UnauthorizedException('Invalid access token.');
       }
       throw new UnauthorizedException('Invalid access token.');
     }

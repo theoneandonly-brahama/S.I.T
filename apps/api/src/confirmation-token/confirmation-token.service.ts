@@ -12,9 +12,9 @@ import { PrismaService } from '../prisma/prisma.service.js';
  * ConfirmationTokenService manages email confirmation tokens (E1-US1.c).
  *
  * Tokens are random, expirable (24-hour validity), stored hashed, and
- * single-use (consumedAt marks consumption). Only one unused token may
- * exist per account at a time — creating a new one revokes any prior
- * unused token for the same account.
+ * single-use (consumedAt marks consumption). The schema keeps one token
+ * row per account; reissuing overwrites that row, so only the latest
+ * plaintext token can be verified.
  */
 @Injectable()
 export class ConfirmationTokenService {
@@ -25,32 +25,46 @@ export class ConfirmationTokenService {
   /**
    * Generates a confirmation token for an account, stores it hashed with
    * a 24-hour expiry, and returns the plaintext token (shown only once,
-   * e.g. emailed to the user). Any previous unused token for the same
-   * account is revoked so only one active confirmation token exists.
+   * e.g. emailed to the user).
+   *
+   * accountId is unique, so the row is upserted: overwriting tokenHash
+   * invalidates any previously issued token, and clearing consumedAt
+   * makes the new token usable even when the previous one was consumed.
    */
   async create(accountId: string): Promise<{ token: string; expiresAt: Date }> {
-    // Revoke any existing unused confirmation token for this account.
-    await this.prisma.confirmationToken.updateMany({
-      where: { accountId, consumedAt: null },
-      data: { consumedAt: new Date() },
-    });
-
     const token = randomBytes(32).toString('hex');
     const tokenHash = await argon2.hash(token);
     const expiresAt = new Date(
       Date.now() + ConfirmationTokenService.TOKEN_TTL_MS
     );
 
-    await this.prisma.confirmationToken.create({
-      data: {
-        accountId,
-        tokenHash,
-        expiresAt,
-        consumedAt: null,
-      },
+    await this.prisma.confirmationToken.upsert({
+      where: { accountId },
+      update: { tokenHash, expiresAt, consumedAt: null },
+      create: { accountId, tokenHash, expiresAt, consumedAt: null },
     });
 
     return { token, expiresAt };
+  }
+
+  /**
+   * Issues a fresh token only for an unverified account.
+   *
+   * Returns null for an unknown or already-verified address. The no-op path
+   * still performs one argon2 hash so the response time does not trivially
+   * reveal whether the account exists.
+   */
+  async resend(
+    email: string
+  ): Promise<{ token: string; expiresAt: Date } | null> {
+    const account = await this.prisma.account.findUnique({ where: { email } });
+
+    if (!account || account.isVerified) {
+      await argon2.hash(randomBytes(32).toString('hex'));
+      return null;
+    }
+
+    return this.create(account.id);
   }
 
   /**
@@ -95,6 +109,31 @@ export class ConfirmationTokenService {
       where: { id },
       data: { consumedAt: new Date() },
     });
+  }
+
+  /**
+   * Verifies a token, consumes it, and marks the account verified —
+   * atomically. The consume and the mark-verified write run in a single
+   * database transaction, so a failure between them cannot burn the
+   * token while leaving the account unverified (the old non-atomic
+   * controller sequence). Throws UnauthorizedException for an invalid
+   * or expired token, before any write.
+   */
+  async verifyAndMarkVerified(token: string) {
+    const record = await this.verify(token);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.confirmationToken.update({
+        where: { id: record.id },
+        data: { consumedAt: new Date() },
+      });
+      await tx.account.update({
+        where: { id: record.accountId },
+        data: { isVerified: true },
+      });
+    });
+
+    return record;
   }
 
   /**

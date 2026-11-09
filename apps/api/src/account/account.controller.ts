@@ -20,7 +20,10 @@ interface RequestUser {
  * AccountController exposes account management endpoints.
  *
  *   GET  /accounts/me  — return the authenticated account (safe fields only)
- *   PATCH /accounts/me — update the authenticated account (email)
+ *   PATCH /accounts/me — reserved for future patchable fields; email and
+ *                        password changes have dedicated auth endpoints
+ *                        (POST /auth/change-email, POST /auth/change-password)
+ *                        so they cannot bypass re-verification
  *
  * All routes require a valid JWT access token (JwtAuthGuard).
  * Ownership is implicit: the account is looked up by `user.sub` from
@@ -43,9 +46,11 @@ export class AccountController {
   }
 
   /**
-   * Updates the authenticated account. Currently only email is updatable;
-   * email collisions are rejected with 409. Password changes go through
-   * a dedicated flow (not yet implemented in Sprint 2).
+   * Updates the authenticated account. No fields are patchable in
+   * Release 1 (see UpdateAccountDto): email changes go through
+   * POST /auth/change-email and password changes through
+   * POST /auth/change-password, both of which enforce their own
+   * verification flow.
    */
   @Patch('me')
   async updateMe(

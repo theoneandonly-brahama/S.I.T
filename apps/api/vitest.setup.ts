@@ -4,6 +4,15 @@
 // can connect, then applies all migrations with `prisma migrate deploy`.
 // Stopped after the suite finishes.
 
+// Integration suites drive dozens of HTTP requests from a single IP
+// (127.0.0.1) in under a minute. The production global rate limit
+// (10 req/min per route) would 429 the later tests, so tests raise it
+// here. This must run before AppModule is imported: both integration
+// specs import this file ahead of './app.module.js', and
+// ThrottlerModule.forRoot reads THROTTLE_LIMIT at module evaluation.
+// Per-route limits (e.g. confirmation resend's 3/min) still apply.
+process.env.THROTTLE_LIMIT = '1000';
+
 import { beforeAll, afterAll } from 'vitest';
 import {
   GenericContainer,

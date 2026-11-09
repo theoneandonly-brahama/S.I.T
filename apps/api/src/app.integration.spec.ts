@@ -9,12 +9,21 @@
 
 import 'reflect-metadata';
 import './vitest.setup.js'; // Testcontainers + Prisma setup
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  afterEach,
+  vi,
+} from 'vitest';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './app.module.js';
 import { configureApp } from './common/configure-app.js';
+import { ConfirmationDeliveryService } from './confirmation-token/confirmation-delivery.service.js';
 
 describe('S.I.T API (integration, real PostgreSQL)', () => {
   let app: INestApplication;
@@ -27,6 +36,7 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
 
   let accessToken = '';
   let refreshToken = '';
+  let confirmationToken = '';
 
   beforeAll(async () => {
     // Wait for DATABASE_URL to be set by the Vitest workspace setupFiles
@@ -49,6 +59,34 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
   afterAll(async () => {
     await app?.close();
   });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Registers an account, confirms it through the public token endpoint,
+   * and logs in. Used by tests that need an authenticated account without
+   * asserting the registration flow itself.
+   */
+  async function registerAndVerify(email: string, password: string) {
+    const registration = await request(server)
+      .post('/auth/register')
+      .send({ email, password })
+      .expect(201);
+
+    await request(server)
+      .get('/confirmation-token/verify')
+      .query({ token: registration.body.confirmation.token })
+      .expect(200);
+
+    const login = await request(server)
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    return { registration, login };
+  }
 
   // -------------------------------------------------------------------------
   // Health
@@ -84,7 +122,7 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
     expect(res.body.statusCode).toBe(400);
   });
 
-  it('POST /auth/register creates a STUDENT account and returns tokens', async () => {
+  it('POST /auth/register creates an inactive STUDENT account and a confirmation token', async () => {
     const res = await request(server)
       .post('/auth/register')
       .send({ email, password })
@@ -94,32 +132,73 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
     expect(res.body.account.role).toBe('STUDENT');
     expect(res.body.account.isVerified).toBe(false);
     expect(res.body.account).not.toHaveProperty('passwordHash');
-    expect(typeof res.body.accessToken).toBe('string');
-    expect(typeof res.body.refreshToken).toBe('string');
-    expect(typeof res.body.expiresIn).toBe('number');
+    expect(res.body).not.toHaveProperty('accessToken');
+    expect(res.body).not.toHaveProperty('refreshToken');
+    expect(typeof res.body.confirmation.token).toBe('string');
+    expect(typeof res.body.confirmation.expiresAt).toBe('string');
 
-    accessToken = res.body.accessToken;
-    refreshToken = res.body.refreshToken;
+    confirmationToken = res.body.confirmation.token;
   });
 
-  it('POST /auth/register rejects a duplicate email with 409', async () => {
-    const res = await request(server)
+  it('POST /auth/register always returns 201 with { account, confirmation } (anti-enumeration)', async () => {
+    // First registration with a new email
+    await request(server)
       .post('/auth/register')
       .send({ email, password })
-      .expect(409);
-    expect(res.body.statusCode).toBe(409);
+      .expect(201);
+
+    // Second registration with the same email — must not return 409.
+    // The response must be identical in shape and status, preserving
+    // the anti-enumeration property: an attacker cannot tell whether
+    // the address already exists.
+    const secondRes = await request(server)
+      .post('/auth/register')
+      .send({ email, password })
+      .expect(201);
+
+    expect(secondRes.body.account.email).toBe(email);
+    expect(typeof secondRes.body.confirmation.token).toBe('string');
+    // expiresAt is returned as ISO string from the API
+    expect(secondRes.body.confirmation.expiresAt).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
+    );
+
+    // Each registration upserts a fresh confirmation token, invalidating
+    // the previous one. The shared token must track the latest valid
+    // one so downstream tests verify with the token that is actually
+    // stored (a real user uses the newest link in the latest email).
+    confirmationToken = secondRes.body.confirmation.token;
   });
 
   // -------------------------------------------------------------------------
-  // Login (uniform failure)
+  // Login (uniform failure, including unverified accounts)
   // -------------------------------------------------------------------------
-  it('POST /auth/login succeeds with correct credentials', async () => {
+  it('POST /auth/login refuses an unverified account with the uniform 401', async () => {
+    const res = await request(server)
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(401);
+    expect(res.body.message).toBe('Invalid credentials.');
+  });
+
+  it('GET /confirmation-token/verify activates the registered account', async () => {
+    const res = await request(server)
+      .get('/confirmation-token/verify')
+      .query({ token: confirmationToken })
+      .expect(200);
+    expect(res.body.verified).toBe(true);
+  });
+
+  it('POST /auth/login succeeds after email confirmation', async () => {
     const res = await request(server)
       .post('/auth/login')
       .send({ email, password })
       .expect(200);
     expect(typeof res.body.accessToken).toBe('string');
     expect(typeof res.body.refreshToken).toBe('string');
+
+    accessToken = res.body.accessToken;
+    refreshToken = res.body.refreshToken;
   });
 
   it('POST /auth/login returns 401 with a uniform message for a wrong password', async () => {
@@ -155,31 +234,32 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
     expect(res.body).not.toHaveProperty('passwordHash');
   });
 
-  it('PATCH /accounts/me updates email without leaking credentials', async () => {
-    const newEmail = `renamed_${unique}@sit.test`;
-    const res = await request(server)
-      .patch('/accounts/me')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({ email: newEmail })
-      .expect(200);
-    expect(res.body.email).toBe(newEmail);
-    expect(res.body).not.toHaveProperty('passwordHash');
-
-    // Restore so later login tests keep working.
-    const back = await request(server)
-      .patch('/accounts/me')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({ email })
-      .expect(200);
-    expect(back.body.email).toBe(email);
-  });
-
-  it('PATCH /accounts/me rejects an invalid email with 400', async () => {
+  it('PATCH /accounts/me rejects email changes (must use /auth/change-email)', async () => {
+    // Email is deliberately not a patchable field: changing it here
+    // would bypass re-verification (isVerified reset + confirmation
+    // token). The global ValidationPipe forbids unknown properties.
     await request(server)
       .patch('/accounts/me')
       .set('Authorization', `Bearer ${accessToken}`)
-      .send({ email: 'nope' })
+      .send({ email: `renamed_${unique}@sit.test` })
       .expect(400);
+
+    // The stored email is untouched.
+    const me = await request(server)
+      .get('/accounts/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    expect(me.body.email).toBe(email);
+  });
+
+  it('PATCH /accounts/me with no fields returns the account unchanged', async () => {
+    const res = await request(server)
+      .patch('/accounts/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({})
+      .expect(200);
+    expect(res.body.email).toBe(email);
+    expect(res.body).not.toHaveProperty('passwordHash');
   });
 
   // -------------------------------------------------------------------------
@@ -188,8 +268,6 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
   it('POST /confirmation-token requires authentication', async () => {
     await request(server).post('/confirmation-token').send({}).expect(401);
   });
-
-  let confirmationToken = '';
 
   it('POST /confirmation-token issues a token for the account', async () => {
     const res = await request(server)
@@ -233,6 +311,67 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
 
   it('GET /confirmation-token/verify without a token param returns 400', async () => {
     await request(server).get('/confirmation-token/verify').expect(400);
+  });
+
+  // -------------------------------------------------------------------------
+  // Public resend (anti-enumeration, delivery seam)
+  // -------------------------------------------------------------------------
+  it('POST /confirmation-token/resend delivers a fresh token for an unverified account', async () => {
+    const resendEmail = `resend_${unique}@sit.test`;
+
+    await request(server)
+      .post('/auth/register')
+      .send({ email: resendEmail, password })
+      .expect(201);
+
+    const delivery = app.get(ConfirmationDeliveryService);
+    const delivered: Array<{ email: string; token: string }> = [];
+    vi.spyOn(delivery, 'deliver').mockImplementation(async (target, token) => {
+      delivered.push({ email: target, token });
+    });
+
+    const res = await request(server)
+      .post('/confirmation-token/resend')
+      .send({ email: resendEmail })
+      .expect(200);
+
+    expect(res.body.message).toMatch(/If an unverified account exists/);
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0].email).toBe(resendEmail);
+    expect(typeof delivered[0].token).toBe('string');
+
+    await request(server)
+      .get('/confirmation-token/verify')
+      .query({ token: delivered[0].token })
+      .expect(200);
+
+    const login = await request(server)
+      .post('/auth/login')
+      .send({ email: resendEmail, password })
+      .expect(200);
+    expect(typeof login.body.accessToken).toBe('string');
+  });
+
+  it('POST /confirmation-token/resend returns the same generic message for unknown or verified addresses', async () => {
+    const delivery = app.get(ConfirmationDeliveryService);
+    const deliver = vi
+      .spyOn(delivery, 'deliver')
+      .mockImplementation(async () => undefined);
+
+    const unknown = await request(server)
+      .post('/confirmation-token/resend')
+      .send({ email: `missing_${unique}@sit.test` })
+      .expect(200);
+    expect(unknown.body.message).toBe(
+      'If an unverified account exists for this address, a confirmation token has been issued.'
+    );
+
+    const verified = await request(server)
+      .post('/confirmation-token/resend')
+      .send({ email })
+      .expect(200);
+    expect(verified.body.message).toBe(unknown.body.message);
+    expect(deliver).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------
@@ -291,14 +430,11 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
   });
 
   it("GET /profile enforces ownership (404 for another account's view)", async () => {
-    const other = await request(server)
-      .post('/auth/register')
-      .send({ email: `other_${unique}@sit.test`, password })
-      .expect(201);
+    const other = await registerAndVerify(`other_${unique}@sit.test`, password);
 
     await request(server)
       .get('/profile')
-      .set('Authorization', `Bearer ${other.body.accessToken}`)
+      .set('Authorization', `Bearer ${other.login.body.accessToken}`)
       .expect(404);
   });
 
@@ -414,5 +550,137 @@ describe('S.I.T API (integration, real PostgreSQL)', () => {
       .post('/auth/refresh')
       .send({ refreshToken: freshRefresh })
       .expect(401);
+  });
+
+  it('POST /auth/change-password changes the password for the authenticated account', async () => {
+    // Isolated account so the shared password used by later logins in
+    // this suite is not mutated.
+    const cpEmail = `changepw_${unique}@sit.test`;
+    const { login } = await registerAndVerify(cpEmail, password);
+    const token = login.body.accessToken;
+
+    // Unauthenticated requests are rejected.
+    await request(server)
+      .post('/auth/change-password')
+      .send({ currentPassword: password, newPassword: 'N3wPassword!' })
+      .expect(401);
+
+    // Wrong current password → uniform 401, password unchanged.
+    await request(server)
+      .post('/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'WrongPass9!', newPassword: 'N3wPassword!' })
+      .expect(401);
+
+    const res = await request(server)
+      .post('/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: password, newPassword: 'N3wPassword!' })
+      .expect(200);
+    expect(res.body).toEqual({ success: true });
+
+    // Old password no longer logs in; new password does.
+    await request(server)
+      .post('/auth/login')
+      .send({ email: cpEmail, password })
+      .expect(401);
+    const relogin = await request(server)
+      .post('/auth/login')
+      .send({ email: cpEmail, password: 'N3wPassword!' })
+      .expect(200);
+    expect(typeof relogin.body.accessToken).toBe('string');
+  });
+
+  it('POST /auth/change-email updates the email and delivers the token to the new address', async () => {
+    // Isolated account so the shared email/password are not mutated.
+    const ceEmail = `changeemail_${unique}@sit.test`;
+    const newEmail = `changeemail_new_${unique}@sit.test`;
+    const { login } = await registerAndVerify(ceEmail, password);
+    const token = login.body.accessToken;
+
+    const delivery = app.get(ConfirmationDeliveryService);
+    const delivered: Array<{ email: string; token: string }> = [];
+    vi.spyOn(delivery, 'deliver').mockImplementation(
+      async (email: string, tok: string) => {
+        delivered.push({ email, token: tok });
+      }
+    );
+
+    // Unauthenticated requests are rejected.
+    await request(server)
+      .post('/auth/change-email')
+      .send({ newEmail })
+      .expect(401);
+
+    const res = await request(server)
+      .post('/auth/change-email')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ newEmail })
+      .expect(200);
+    expect(res.body.message).toMatch(/If an unverified account exists/);
+
+    // The re-verification token goes to the NEW inbox (industry standard).
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0].email).toBe(newEmail);
+
+    // The delivered token verifies against the account.
+    await request(server)
+      .get('/confirmation-token/verify')
+      .query({ token: delivered[0].token })
+      .expect(200);
+
+    // Login now works under the new email address.
+    const relogin = await request(server)
+      .post('/auth/login')
+      .send({ email: newEmail, password })
+      .expect(200);
+    expect(typeof relogin.body.accessToken).toBe('string');
+  });
+
+  it('POST /auth/change-email resets verification until the new address is confirmed', async () => {
+    const reEmail = `changeemail_re_${unique}@sit.test`;
+    const reNewEmail = `changeemail_re_new_${unique}@sit.test`;
+    const { login } = await registerAndVerify(reEmail, password);
+    const token = login.body.accessToken;
+    const oldRefresh = login.body.refreshToken;
+
+    const delivery = app.get(ConfirmationDeliveryService);
+    const delivered: Array<{ email: string; token: string }> = [];
+    vi.spyOn(delivery, 'deliver').mockImplementation(
+      async (email: string, tok: string) => {
+        delivered.push({ email, token: tok });
+      }
+    );
+
+    await request(server)
+      .post('/auth/change-email')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ newEmail: reNewEmail })
+      .expect(200);
+
+    // isVerified reset: login under the new email is refused (uniform 401)
+    // until the confirmation token is clicked.
+    await request(server)
+      .post('/auth/login')
+      .send({ email: reNewEmail, password })
+      .expect(401);
+
+    // Sessions issued under the old address are revoked: the old
+    // refresh token cannot rotate (uniform 401).
+    await request(server)
+      .post('/auth/refresh')
+      .send({ refreshToken: oldRefresh })
+      .expect(401);
+
+    await request(server)
+      .get('/confirmation-token/verify')
+      .query({ token: delivered[0].token })
+      .expect(200);
+
+    const relogin = await request(server)
+      .post('/auth/login')
+      .send({ email: reNewEmail, password })
+      .expect(200);
+    expect(typeof relogin.body.accessToken).toBe('string');
   });
 });

@@ -18,6 +18,12 @@ enum Role {
   PLATFORM_STAFF
 }
 
+enum UploadPurpose {
+  GENERAL
+  PROFILE_PHOTO
+  PROFILE_CV
+}
+
 model Account {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -60,27 +66,38 @@ model ConfirmationToken {
 }
 
 model Profile {
-  id          String   @id @default(uuid())
-  accountId   String   @unique
-  firstName   String
-  lastName    String
-  diploma     String?
-  university  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  accountId     String   @unique
+  firstName     String
+  lastName      String
+  diploma       String?
+  university    String?
+  skills        String[] @default([])
+  links         String[] @default([])
+  curriculum    Json?
+  photoUploadId String?  @unique
+  cvUploadId    String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  photoUpload   Upload?  @relation("ProfilePhoto", fields: [photoUploadId], references: [id], onDelete: SetNull)
+  cvUpload      Upload?  @relation("ProfileCv", fields: [cvUploadId], references: [id], onDelete: SetNull)
 }
 
 model Upload {
-  id           String   @id @default(uuid())
+  id           String        @id @default(uuid())
   accountId    String
   originalName String
-  storageKey   String   @unique
+  storageKey   String        @unique
   mimeType     String
   size         Int
-  createdAt    DateTime @default(now())
+  purpose      UploadPurpose @default(GENERAL)
+  createdAt    DateTime      @default(now())
 
-  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  profilePhoto Profile?      @relation("ProfilePhoto")
+  profileCv    Profile?      @relation("ProfileCv")
   @@index([accountId])
+  @@index([accountId, purpose])
 }

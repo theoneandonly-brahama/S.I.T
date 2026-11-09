@@ -18,6 +18,7 @@ import { UploadService } from './upload.service.js';
 import { JwtAuthGuard } from '../auth/guards/auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { GetSignedAccessDto } from './dto/get-signed-access.dto.js';
+import { UploadFileDto } from './dto/upload.dto.js';
 
 interface RequestUser {
   sub: string;
@@ -56,8 +57,10 @@ export class UploadController {
 
   /**
    * Uploads a file for the authenticated account.
-   * Accepts multipart/form-data with a single `file` field.
-   * Returns safe metadata (id, originalName, mimeType, size, createdAt).
+   * Accepts multipart/form-data with a `file` field and an optional
+   * `purpose` field (GENERAL by default).
+   * Returns safe metadata (id, originalName, mimeType, size, purpose,
+   * createdAt).
    */
   @Post()
   @UseInterceptors(
@@ -69,18 +72,23 @@ export class UploadController {
   )
   async upload(
     @CurrentUser() user: RequestUser,
-    @UploadedFile() file: UploadedFile
+    @UploadedFile() file: UploadedFile,
+    @Body() dto: UploadFileDto
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded.');
     }
 
-    return this.uploadService.uploadFile(user.sub, {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      buffer: file.buffer,
-    });
+    return this.uploadService.uploadFile(
+      user.sub,
+      {
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        buffer: file.buffer,
+      },
+      dto.purpose
+    );
   }
 
   /**
