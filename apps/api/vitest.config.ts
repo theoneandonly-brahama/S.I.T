@@ -11,8 +11,12 @@ export default defineConfig({
     // Stryker sandboxes (.stryker-tmp/) contain mutated copies of every
     // spec; they must never be collected by a normal `pnpm test` run.
     exclude: ['**/node_modules/**', '**/.stryker-tmp/**'],
-    // Package-specific test config goes here when needed.
-    // Do NOT set `reporters` at package level — the root
-    // vitest.config.ts governs the reporter for the whole workspace.
+    // Pin the reporter explicitly. Vitest 5 appends its `github-actions`
+    // reporter whenever GITHUB_ACTIONS=true, and that reporter writes a
+    // job summary on every run. Stryker executes this config once per
+    // mutant, which flooded the mutation job's summary with dozens of
+    // "Vitest Test Report" blocks. The root config governs `pnpm test`;
+    // this pin governs Stryker's isolated runs.
+    reporters: ['default'],
   },
 });

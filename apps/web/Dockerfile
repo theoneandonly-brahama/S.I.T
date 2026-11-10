@@ -7,6 +7,10 @@
 # nginx serves the Vite SPA and reverse-proxies /api/ to the API
 # service on the Compose network (api:3000), mirroring the Vite dev
 # proxy (which also strips the /api prefix — the API serves at root).
+#
+# The server runs as the unprivileged `nginx` user: a static SPA plus
+# a reverse proxy needs no root. That is why the main config listens
+# on 8080 and keeps its pid/temp files under /tmp (see nginx.conf).
 
 # ---- Stage 1: install ----
 FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS deps
@@ -41,8 +45,13 @@ RUN pnpm --filter @sit/web build
 
 # ---- Stage 3: serve ----
 FROM nginx:1.27-alpine@sha256:656ce47a34be5d8ff2f8a314d614e3d97a3a32a154fe5a803f3a66fe8b8d03615 AS runner
-COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Full main config (not just a conf.d snippet): a non-root worker
+# cannot bind :80 or write the default pid/temp paths, so this file
+# sets listen 8080, pid /tmp/nginx.pid and /tmp temp paths.
+COPY apps/web/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
-EXPOSE 80
+USER nginx
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

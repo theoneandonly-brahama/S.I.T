@@ -80,6 +80,13 @@ RUN mkdir -p /app/uploads && chown nestjs:nodejs /app/uploads
 USER nestjs
 COPY --from=prod-deps --chown=nestjs:nodejs /out/node_modules ./node_modules
 COPY --from=builder   --chown=nestjs:nodejs /app/apps/api/dist ./dist
+# Migrations run at container start, so the schema, the migration
+# history and the Prisma config must exist in the runtime image.
+# Without these, `prisma migrate deploy` fails and the container
+# crash-loops on any fresh database (e.g. a CI runner or the tutor's
+# first `docker compose up`).
+COPY --from=prod-deps --chown=nestjs:nodejs /out/prisma ./prisma
+COPY --from=prod-deps --chown=nestjs:nodejs /out/prisma.config.ts ./prisma.config.ts
 
 EXPOSE 3000
 # Apply database migrations before starting the API: fresh Compose

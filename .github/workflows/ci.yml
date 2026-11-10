@@ -118,7 +118,7 @@ jobs:
           if-no-files-found: warn
 
       # ----- Gate 6: Build -------------------------------------------------
-      - name: Gate 6 — Build API image
+      - name: Gate 6 — Build images (API + web)
         id: gate6
         run: |
           docker build \
@@ -127,6 +127,11 @@ jobs:
             --iidfile image-digest.txt \
             --label "org.opencontainers.image.revision=${{ github.sha }}" \
             . 2>&1 | tee build.log
+          docker build \
+            -f apps/web/Dockerfile \
+            -t sit-web:${{ github.sha }} \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            . 2>&1 | tee -a build.log
 
       - name: Upload gate 6 report
         if: always()
@@ -256,6 +261,9 @@ jobs:
       # (10/min/route) would 429 the later tests. Raising it for this
       # job only; the shipped Compose default stays 10.
       THROTTLE_LIMIT: '1000'
+      # The Vite dev proxy must reach the container over IPv4: `localhost`
+      # can resolve to ::1 on Linux runners while the API binds 0.0.0.0.
+      SIT_API_TARGET: 'http://127.0.0.1:3000'
     defaults:
       run:
         shell: bash --noprofile --norc -euo pipefail {0}
@@ -277,16 +285,23 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Start Postgres and API (Compose)
+        id: compose
         run: |
-          docker compose -f infrastructure/docker-compose.yml up -d --build postgres api
-          for i in $(seq 1 30); do
+          docker compose -f infrastructure/docker-compose.yml up -d --build postgres api 2>&1 | tee compose.log
+          for i in $(seq 1 45); do
             if curl -sf http://127.0.0.1:3000/health > /dev/null; then
-              echo "api healthy"
-              break
+              echo "api healthy after $((i * 2))s" | tee -a compose.log
+              exit 0
             fi
             sleep 2
           done
-          curl -sf http://127.0.0.1:3000/health
+          echo "::error::API did not become healthy within 90s"
+          exit 1
+
+      - name: Dump Compose logs on failure
+        if: failure()
+        run: |
+          docker compose -f infrastructure/docker-compose.yml logs --no-color api postgres 2>&1 | tee -a compose.log
 
       - name: Install Playwright browsers
         run: |
@@ -308,6 +323,7 @@ jobs:
         with:
           name: gate-7-e2e-report
           path: |
+            compose.log
             e2e.log
             apps/web/playwright-report/
             apps/web/test-results/
@@ -319,12 +335,24 @@ jobs:
           {
             echo "## CI Pipeline — Browser E2E (Gate 7)"
             echo ""
-            echo "Overall: ${{ steps.gate7.outcome == 'success' && 'passed' || 'failed' }}"
+            echo "Overall: ${{ (steps.compose.outcome == 'success' && steps.gate7.outcome == 'success') && 'passed' || 'failed' }}"
             echo ""
             echo "| Suite | Status |"
             echo "|-------|--------|"
+            echo "| Compose stack (Postgres + API) | ${{ steps.compose.outcome == 'success' && 'passed' || 'failed' }} |"
             echo "| Playwright journeys + axe + mobile | ${{ steps.gate7.outcome == 'success' && 'passed' || 'failed' }} |"
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ -s compose.log ]; then
+            {
+              echo ""
+              echo "<details><summary>Compose / API log</summary>"
+              echo ""
+              echo '```'
+              tail -n 40 compose.log
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ -s e2e.log ]; then
             {
               echo ""
@@ -475,6 +503,60 @@ jobs:
             --output semgrep.sarif \
             --error \
             . 2>&1 | tee semgrep.log
+
+      # The Security tab only shows a count until GitHub renders the
+      # SARIF, and the raw log buries findings in noise. Parse the SARIF
+      # and publish an explicit table plus one workflow annotation per
+      # finding, so the summary answers "what exactly failed?".
+      - name: Gate 5b — Findings summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          path = "semgrep.sarif"
+          if not os.path.exists(path):
+              print("no SARIF file produced; nothing to summarise")
+              raise SystemExit(0)
+
+          with open(path, encoding="utf-8") as fh:
+              data = json.load(fh)
+
+          findings = []
+          for run in data.get("runs", []):
+              for result in run.get("results", []):
+                  loc = result["locations"][0]["physicalLocation"]
+                  uri = loc["artifactLocation"]["uri"]
+                  line = loc.get("region", {}).get("startLine", 0)
+                  message = result["message"]["text"].replace("\n", " ")
+                  message = message.replace("|", "\\|")[:300]
+                  findings.append((result["ruleId"], uri, line, message))
+
+          lines = ["", "### SAST findings (Gate 5b)", ""]
+          if findings:
+              lines.append(
+                  f"**{len(findings)} finding(s)** — also published as workflow "
+                  "annotations and in the Security tab."
+              )
+              lines.append("")
+              lines.append("| Rule | File | Line | Message |")
+              lines.append("|---|---|---|---|")
+              for rule, uri, line, message in findings:
+                  lines.append(f"| `{rule}` | `{uri}` | {line} | {message} |")
+              for rule, uri, line, message in findings:
+                  print(f"::error file={uri},line={line},title={rule}::{message}")
+          else:
+              lines.append("No findings.")
+          lines.append("")
+
+          text = "\n".join(lines)
+          print(text)
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as fh:
+                  fh.write(text + "\n")
+          PY
 
       - name: Upload Semgrep SARIF to Security tab
         id: sarif
