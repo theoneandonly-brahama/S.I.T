@@ -44,7 +44,7 @@ RUN pnpm --filter @sit/contract build
 RUN pnpm --filter @sit/web build
 
 # ---- Stage 3: serve ----
-FROM nginx:1.27-alpine@sha256:656ce47a34be5d8ff2f8a314d614e3d97a3a32a154fe5a803f3a66fe8b8d03615 AS runner
+FROM nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS runner
 
 # Full main config (not just a conf.d snippet): a non-root worker
 # cannot bind :80 or write the default pid/temp paths, so this file

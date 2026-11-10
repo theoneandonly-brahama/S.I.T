@@ -365,12 +365,11 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  # ----- Gate 9: Mutation testing (non-blocking calibration) ----------------
+  # ----- Gate 9: Mutation testing (blocking quality gate) ------------------
   mutation:
     name: Mutation Testing
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    continue-on-error: true
     env:
       NO_COLOR: '1'
       FORCE_COLOR: '0'
@@ -420,13 +419,15 @@ jobs:
         if: always()
         run: |
           {
-            echo "## CI Pipeline — Mutation Testing (Gate 9, non-blocking)"
+            echo "## CI Pipeline — Mutation Testing (Gate 9)"
             echo ""
-            echo "Overall: ${{ steps.gate9.outcome == 'success' && 'completed' || 'failed (non-blocking)' }}"
+            echo "Overall: ${{ steps.gate9.outcome == 'success' && 'passed' || 'failed' }}"
             echo ""
             echo "| Scope | Status |"
             echo "|-------|--------|"
-            echo "| token.service + password.service + upload.constants | ${{ steps.gate9.outcome == 'success' && 'completed' || 'see log' }} |"
+            echo "| token.service + password.service + upload.constants | ${{ steps.gate9.outcome == 'success' && 'passed' || 'failed — see log' }} |"
+            echo ""
+            echo "Gate 9 is blocking: Stryker exits non-zero when the mutation score falls below the configured break threshold (80%)."
           } >> "$GITHUB_STEP_SUMMARY"
           if [ -s apps/api/mutation.log ]; then
             {
