@@ -11,6 +11,7 @@ node_modules
 **/build
 **/.turbo
 **/coverage
+**/*.tsbuildinfo
 pnpm-lock.yaml.bak
 
 # Local environment and secrets

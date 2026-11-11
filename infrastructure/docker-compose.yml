@@ -34,14 +34,33 @@ services:
     environment:
       DATABASE_URL: postgres://sit_user:sit_dev_password_only@postgres:5432/sit_db
       NODE_ENV: production
+      # Global rate limit per route (defaults to 10/min). Raise for
+      # E2E runs, which make many requests from one IP:
+      #   THROTTLE_LIMIT=1000 docker compose up -d --build api
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-10}
     ports:
       - '127.0.0.1:3000:3000'
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/health']
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/health']
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    container_name: sit-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # Tutor/demo entry point: the full app (SPA + proxied API).
+      # nginx listens on 8080 inside the container because it runs
+      # unprivileged (no port 80).
+      - '127.0.0.1:8080:8080'
 
 volumes:
   postgres_data:

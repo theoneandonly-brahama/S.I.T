@@ -3,6 +3,34 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     projects: ['apps/*', 'packages/*'],
-    reporters: ['default'],
+    reporters: ['default', 'junit'],
+    // Stryker mutation sandboxes must never be collected as test files.
+    exclude: ['**/node_modules/**', '**/.stryker-tmp/**'],
+    coverage: {
+      enabled: true,
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: './coverage',
+      include: ['apps/api/src/**/*.ts'],
+      exclude: [
+        '**/*.spec.ts',
+        '**/*.integration.spec.ts',
+        '**/.stryker-tmp/**',
+        'apps/api/src/main.ts',
+        // Bootstrap-only side effect: reads the repository .env at import
+        // time. Like main.ts it has no unit-testable behaviour.
+        'apps/api/src/common/load-env.ts',
+        'apps/api/src/**/dto/*.ts',
+      ],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
+    },
+    outputFile: {
+      junit: './junit.xml',
+    },
   },
 });

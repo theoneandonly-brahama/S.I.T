@@ -1,0 +1,22 @@
+{
+  "$schema": "https://stryker-mutator.io/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "coverageAnalysis": "perTest",
+  "ignoreStatic": true,
+  "logLevel": "error",
+  "mutate": [
+    "src/auth/token.service.ts",
+    "src/auth/password.service.ts",
+    "src/upload/upload.constants.ts"
+  ],
+  "reporters": ["clear-text"],
+  "thresholds": {
+    "break": 80,
+    "high": 80,
+    "low": 60
+  }
+}

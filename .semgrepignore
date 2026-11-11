@@ -13,6 +13,10 @@ pnpm-lock.yaml
 .git/
 .github/
 
+# Report evidence and drafts (not code; scanning these produces
+# false-positive findings in Semgrep/CodeQL)
+documentation/
+
 # Editor and OS noise
 .vscode/
 .idea/

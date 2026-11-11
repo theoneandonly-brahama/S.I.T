@@ -30,6 +30,8 @@ pipeline-inspection.txt
 # Test and tooling artifacts
 playwright-report/
 test-results/
+.stryker-tmp/
+stryker.log
 .nyc_output/
 .nest/
 *.spdx.json
@@ -55,6 +57,7 @@ Thumbs.db
 
 # Local overrides
 .envrc.local
+
 
 # Private AI-assistant workflow files — never publish
 # (owner-authorized exclusion of AI-identifiable files; see the
@@ -83,5 +86,7 @@ apps/api/.turbo/
 
 # Personal local development environment — not part of the project
 .devcontainer/
+sit_journey.mjs
 .vscode/
 .envrc.local
+junit.xml

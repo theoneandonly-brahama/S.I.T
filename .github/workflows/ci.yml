@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      NO_COLOR: "1"
-      FORCE_COLOR: "0"
+      NO_COLOR: '1'
+      FORCE_COLOR: '0'
     defaults:
       run:
         shell: bash --noprofile --norc -euo pipefail {0}
@@ -75,6 +75,15 @@ jobs:
           if-no-files-found: warn
 
       # ----- Gate 3: Type contract ----------------------------------------
+      - name: Generate Prisma Client
+        run: pnpm --filter @sit/api exec prisma generate
+        working-directory: apps/api
+        env:
+          # Prisma 7 requires DATABASE_URL for `prisma generate` even though
+          # it doesn't connect to the database. A dummy value satisfies the
+          # config validation; the real URL is set by Testcontainers in tests.
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
       - name: Gate 3 — Type check
         id: gate3
         run: pnpm run typecheck 2>&1 | tee typecheck.log
@@ -87,7 +96,7 @@ jobs:
           path: typecheck.log
           if-no-files-found: warn
 
-      # ----- Gate 4: Tests (basic tests added; gate is now active) ---
+      # ----- Gate 4: Tests (unit tests + coverage + JUnit XML) ---
       - name: Gate 4 — Tests
         id: gate4
         run: |
@@ -96,17 +105,20 @@ jobs:
           else
             echo "no test files exist yet; gate 4 is wired" > test.log
           fi
-      
+
       - name: Upload gate 4 report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gate-4-test-report
-          path: test.log
+          path: |
+            test.log
+            junit.xml
+            coverage/
           if-no-files-found: warn
 
       # ----- Gate 6: Build -------------------------------------------------
-      - name: Gate 6 — Build API image
+      - name: Gate 6 — Build images (API + web)
         id: gate6
         run: |
           docker build \
@@ -115,6 +127,11 @@ jobs:
             --iidfile image-digest.txt \
             --label "org.opencontainers.image.revision=${{ github.sha }}" \
             . 2>&1 | tee build.log
+          docker build \
+            -f apps/web/Dockerfile \
+            -t sit-web:${{ github.sha }} \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            . 2>&1 | tee -a build.log
 
       - name: Upload gate 6 report
         if: always()
@@ -185,6 +202,19 @@ jobs:
             echo "| 4 — Tests | ${{ steps.gate4.outcome == 'success' && 'passed' || 'failed' }} |"
             echo "| 6 — Build | ${{ steps.gate6.outcome == 'success' && 'passed' || 'failed' }} |"
             echo "| 8 — Compose | ${{ steps.gate8.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo ""
+            echo "### Test results (Gate 4)"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            grep -E "Test Files|Tests " test.log 2>/dev/null | tail -4 | sed 's/^/| /; s/$/ |/' || echo "| (no test log) | |"
+            echo ""
+            echo "### Coverage (Gate 4, v8)"
+            echo ""
+            echo "| Metric | Statements | Branches | Functions | Lines |"
+            echo "|--------|------------|----------|-----------|-------|"
+            # Coverage final table "All files" row (strip ANSI, pad columns).
+            grep -E "All files" test.log 2>/dev/null | tail -1 | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\|/|/g' | awk -F'|' '{printf "| Overall | %s | %s | %s | %s |\n", $2, $3, $4, $5}' || echo "| (no coverage row in log) | | | | |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # ── NEW: collapsible per-gate content, same pattern as the Trivy block ──
@@ -218,6 +248,198 @@ jobs:
           publish "Gate 4 — Vitest Tests" test.log
           publish "Gate 6 — Build" build.log 300
           publish "Gate 8 — Compose" gate-8.log
+
+  # ----- Gate 7: Browser E2E (Playwright + axe against the Compose stack) --
+  e2e:
+    name: Browser E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      NO_COLOR: '1'
+      FORCE_COLOR: '0'
+      # E2E drives many requests from one IP; the production throttler
+      # (10/min/route) would 429 the later tests. Raising it for this
+      # job only; the shipped Compose default stays 10.
+      THROTTLE_LIMIT: '1000'
+      # The Vite dev proxy must reach the container over IPv4: `localhost`
+      # can resolve to ::1 on Linux runners while the API binds 0.0.0.0.
+      SIT_API_TARGET: 'http://127.0.0.1:3000'
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start Postgres and API (Compose)
+        id: compose
+        run: |
+          docker compose -f infrastructure/docker-compose.yml up -d --build postgres api 2>&1 | tee compose.log
+          for i in $(seq 1 45); do
+            if curl -sf http://127.0.0.1:3000/health > /dev/null; then
+              echo "api healthy after $((i * 2))s" | tee -a compose.log
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::API did not become healthy within 90s"
+          exit 1
+
+      - name: Dump Compose logs on failure
+        if: failure()
+        run: |
+          docker compose -f infrastructure/docker-compose.yml logs --no-color api postgres 2>&1 | tee -a compose.log
+
+      - name: Install Playwright browsers
+        run: |
+          key=$(node -e "console.log(require('./apps/web/package.json').devDependencies['@playwright/test'])")
+          cache_dir="$HOME/.cache/ms-playwright"
+          if [ -d "$cache_dir" ] && [ "$(find "$cache_dir" -maxdepth 1 -name 'chromium-*' | wc -l)" -gt 0 ]; then
+            echo "playwright browser cache hit"
+          else
+            pnpm --filter @sit/web exec playwright install --with-deps chromium
+          fi
+
+      - name: Gate 7 — Browser E2E
+        id: gate7
+        run: pnpm --filter @sit/web test:e2e 2>&1 | tee e2e.log
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: gate-7-e2e-report
+          path: |
+            compose.log
+            e2e.log
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: warn
+
+      - name: Summary — E2E
+        if: always()
+        run: |
+          {
+            echo "## CI Pipeline — Browser E2E (Gate 7)"
+            echo ""
+            echo "Overall: ${{ (steps.compose.outcome == 'success' && steps.gate7.outcome == 'success') && 'passed' || 'failed' }}"
+            echo ""
+            echo "| Suite | Status |"
+            echo "|-------|--------|"
+            echo "| Compose stack (Postgres + API) | ${{ steps.compose.outcome == 'success' && 'passed' || 'failed' }} |"
+            echo "| Playwright journeys + axe + mobile | ${{ steps.gate7.outcome == 'success' && 'passed' || 'failed' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -s compose.log ]; then
+            {
+              echo ""
+              echo "<details><summary>Compose / API log</summary>"
+              echo ""
+              echo '```'
+              tail -n 40 compose.log
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -s e2e.log ]; then
+            {
+              echo ""
+              echo "<details><summary>E2E log</summary>"
+              echo ""
+              echo '```'
+              tail -n 60 e2e.log
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ----- Gate 9: Mutation testing (blocking quality gate) ------------------
+  mutation:
+    name: Mutation Testing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NO_COLOR: '1'
+      FORCE_COLOR: '0'
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @sit/api exec prisma generate
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
+      - name: Gate 9 — Mutation testing (pure-logic scope)
+        id: gate9
+        run: |
+          cd apps/api
+          npx stryker run 2>&1 | tee mutation.log
+
+      - name: Upload mutation artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: gate-9-mutation-report
+          path: |
+            apps/api/mutation.log
+            apps/api/reports/
+          if-no-files-found: warn
+
+      - name: Summary — Mutation
+        if: always()
+        run: |
+          {
+            echo "## CI Pipeline — Mutation Testing (Gate 9)"
+            echo ""
+            echo "Overall: ${{ steps.gate9.outcome == 'success' && 'passed' || 'failed' }}"
+            echo ""
+            echo "| Scope | Status |"
+            echo "|-------|--------|"
+            echo "| token.service + password.service + upload.constants | ${{ steps.gate9.outcome == 'success' && 'passed' || 'failed — see log' }} |"
+            echo ""
+            echo "Gate 9 is blocking: Stryker exits non-zero when the mutation score falls below the configured break threshold (80%)."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -s apps/api/mutation.log ]; then
+            {
+              echo ""
+              echo "<details><summary>Mutation score table</summary>"
+              echo ""
+              echo '```'
+              grep -A12 "Mutation score" apps/api/mutation.log || tail -n 30 apps/api/mutation.log
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   security:
     name: Security & Supply Chain
@@ -282,6 +504,68 @@ jobs:
             --output semgrep.sarif \
             --error \
             . 2>&1 | tee semgrep.log
+
+      # The Security tab only shows a count until GitHub renders the
+      # SARIF, and the raw log buries findings in noise. Parse the SARIF
+      # and publish an explicit table plus one workflow annotation per
+      # finding, so the summary answers "what exactly failed?".
+      - name: Gate 5b — Findings summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          path = "semgrep.sarif"
+          if not os.path.exists(path):
+              print("no SARIF file produced; nothing to summarise")
+              raise SystemExit(0)
+
+          with open(path, encoding="utf-8") as fh:
+              data = json.load(fh)
+
+          findings = []
+          for run in data.get("runs", []):
+              for result in run.get("results", []):
+                  loc = result["locations"][0]["physicalLocation"]
+                  uri = loc["artifactLocation"]["uri"]
+                  line = loc.get("region", {}).get("startLine", 0)
+                  message = result["message"]["text"].replace("\n", " ")
+                  message = message.replace("|", "\\|")[:300]
+                  findings.append((result["ruleId"], uri, line, message))
+
+          lines = [""]
+          if findings:
+              lines.append(
+                  f"<details><summary>SAST findings (Gate 5b) — "
+                  f"{len(findings)} finding(s)</summary>"
+              )
+              lines.append("")
+              lines.append(
+                  "Also published as workflow annotations and in the Security tab."
+              )
+              lines.append("")
+              lines.append("| Rule | File | Line | Message |")
+              lines.append("|---|---|---|---|")
+              for rule, uri, line, message in findings:
+                  lines.append(f"| `{rule}` | `{uri}` | {line} | {message} |")
+              lines.append("")
+              lines.append("</details>")
+              for rule, uri, line, message in findings:
+                  print(f"::error file={uri},line={line},title={rule}::{message}")
+          else:
+              lines.append("### SAST findings (Gate 5b)")
+              lines.append("")
+              lines.append("No findings.")
+          lines.append("")
+
+          text = "\n".join(lines)
+          print(text)
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as fh:
+                  fh.write(text + "\n")
+          PY
 
       - name: Upload Semgrep SARIF to Security tab
         id: sarif
