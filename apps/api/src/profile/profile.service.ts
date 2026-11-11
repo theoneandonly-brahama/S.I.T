@@ -15,11 +15,14 @@ import {
   CurriculumEntryDto,
 } from './dto/profile.dto.js';
 import {
+  PROFILE_CREDENTIAL_MAX_SIZE,
+  PROFILE_CREDENTIAL_MIME_TYPES,
   PROFILE_CV_MAX_SIZE,
   PROFILE_CV_MIME_TYPES,
   PROFILE_PHOTO_MAX_SIZE,
   PROFILE_PHOTO_MIME_TYPES,
 } from '../upload/upload.constants.js';
+import { isAllowedBannerColor } from './banner-color.js';
 
 interface UploadRecord {
   id: string;
@@ -40,13 +43,34 @@ interface ProfileRecord {
   skills: string[] | null;
   links: string[] | null;
   curriculum: Prisma.JsonValue | null;
+  bannerColor: string | null;
   photoUploadId: string | null;
   cvUploadId: string | null;
+  diplomaUploadId: string | null;
   createdAt: Date;
   updatedAt: Date;
   photoUpload?: UploadRecord | null;
   cvUpload?: UploadRecord | null;
+  diplomaUpload?: UploadRecord | null;
+  certifications?: Array<{ upload: UploadRecord }>;
 }
+
+type DocumentFields = {
+  photoUploadId?: string | null;
+  cvUploadId?: string | null;
+  diplomaUploadId?: string | null;
+  certificationUploadIds?: string[];
+};
+
+const PROFILE_INCLUDE = {
+  photoUpload: true,
+  cvUpload: true,
+  diplomaUpload: true,
+  certifications: {
+    include: { upload: true },
+    orderBy: { createdAt: 'asc' },
+  },
+} satisfies Prisma.ProfileInclude;
 
 @Injectable()
 export class ProfileService {
@@ -68,11 +92,13 @@ export class ProfileService {
       throw new ConflictException('A profile already exists for this account.');
     }
 
-    await this.validateDocuments(accountId, dto.photoUploadId, dto.cvUploadId);
+    await this.validateDocuments(accountId, dto);
+    this.assertBannerColor(dto.bannerColor);
 
+    const certificationIds = dto.certificationUploadIds ?? [];
     const profile = await this.prisma.profile.create({
       data: {
-        accountId,
+        account: { connect: { id: accountId } },
         firstName: dto.firstName,
         lastName: dto.lastName,
         diploma: dto.diploma,
@@ -80,10 +106,27 @@ export class ProfileService {
         skills: Array.isArray(dto.skills) ? dto.skills : [],
         links: Array.isArray(dto.links) ? dto.links : [],
         curriculum: this.toCurriculumJson(dto.curriculum),
-        photoUploadId: dto.photoUploadId ?? null,
-        cvUploadId: dto.cvUploadId ?? null,
+        bannerColor: dto.bannerColor ?? null,
+        ...(dto.photoUploadId
+          ? { photoUpload: { connect: { id: dto.photoUploadId } } }
+          : {}),
+        ...(dto.cvUploadId
+          ? { cvUpload: { connect: { id: dto.cvUploadId } } }
+          : {}),
+        ...(dto.diplomaUploadId
+          ? { diplomaUpload: { connect: { id: dto.diplomaUploadId } } }
+          : {}),
+        ...(certificationIds.length > 0
+          ? {
+              certifications: {
+                create: certificationIds.map((uploadId) => ({
+                  upload: { connect: { id: uploadId } },
+                })),
+              },
+            }
+          : {}),
       },
-      include: { photoUpload: true, cvUpload: true },
+      include: PROFILE_INCLUDE,
     });
 
     return this.toResponse(profile);
@@ -97,7 +140,7 @@ export class ProfileService {
   async findByAccountId(accountId: string): Promise<ProfileResponseDto> {
     const profile = await this.prisma.profile.findUnique({
       where: { accountId },
-      include: { photoUpload: true, cvUpload: true },
+      include: PROFILE_INCLUDE,
     });
     if (!profile) {
       throw new NotFoundException('Profile not found.');
@@ -110,9 +153,10 @@ export class ProfileService {
    * the profile via accountId — a caller can only update their own profile.
    * Only provided fields are patched.
    *
-   * A provided `photoUploadId` / `cvUploadId` must reference an upload that
-   * belongs to the same account and carries the matching purpose, MIME type
-   * and size. `null` detaches the slot.
+   * A provided document id must reference an upload owned by the same
+   * account that satisfies the slot's MIME and size rules. The upload's
+   * original purpose is not changed and is not required to match the slot.
+   * `null` detaches the slot.
    */
   async update(
     accountId: string,
@@ -125,9 +169,10 @@ export class ProfileService {
       throw new NotFoundException('Profile not found.');
     }
 
-    await this.validateDocuments(accountId, dto.photoUploadId, dto.cvUploadId);
+    await this.validateDocuments(accountId, dto);
+    this.assertBannerColor(dto.bannerColor);
 
-    const data: Prisma.ProfileUncheckedUpdateInput = {};
+    const data: Prisma.ProfileUpdateInput = {};
     if (dto.firstName !== undefined) data.firstName = dto.firstName;
     if (dto.lastName !== undefined) data.lastName = dto.lastName;
     if (dto.diploma !== undefined) data.diploma = dto.diploma;
@@ -137,17 +182,41 @@ export class ProfileService {
     if (Array.isArray(dto.curriculum)) {
       data.curriculum = this.toCurriculumJson(dto.curriculum);
     }
+    if (dto.bannerColor !== undefined) {
+      data.bannerColor = dto.bannerColor;
+    }
     if (dto.photoUploadId !== undefined) {
-      data.photoUploadId = dto.photoUploadId;
+      data.photoUpload = dto.photoUploadId
+        ? { connect: { id: dto.photoUploadId } }
+        : { disconnect: true };
     }
     if (dto.cvUploadId !== undefined) {
-      data.cvUploadId = dto.cvUploadId;
+      data.cvUpload = dto.cvUploadId
+        ? { connect: { id: dto.cvUploadId } }
+        : { disconnect: true };
+    }
+    if (dto.diplomaUploadId !== undefined) {
+      data.diplomaUpload = dto.diplomaUploadId
+        ? { connect: { id: dto.diplomaUploadId } }
+        : { disconnect: true };
+    }
+    if (Array.isArray(dto.certificationUploadIds)) {
+      data.certifications = {
+        deleteMany: {},
+        ...(dto.certificationUploadIds.length > 0
+          ? {
+              create: dto.certificationUploadIds.map((uploadId) => ({
+                upload: { connect: { id: uploadId } },
+              })),
+            }
+          : {}),
+      };
     }
 
     const updated = await this.prisma.profile.update({
       where: { accountId },
       data,
-      include: { photoUpload: true, cvUpload: true },
+      include: PROFILE_INCLUDE,
     });
 
     return this.toResponse(updated);
@@ -164,66 +233,103 @@ export class ProfileService {
    */
   private async validateDocuments(
     accountId: string,
-    photoUploadId?: string | null,
-    cvUploadId?: string | null
+    dto: DocumentFields
   ): Promise<void> {
-    if (photoUploadId) {
+    if (dto.photoUploadId) {
       const upload = await this.prisma.upload.findUnique({
-        where: { id: photoUploadId },
+        where: { id: dto.photoUploadId },
       });
       this.assertDocument(
         upload,
         accountId,
-        'PROFILE_PHOTO',
         PROFILE_PHOTO_MIME_TYPES,
         PROFILE_PHOTO_MAX_SIZE,
         'photo'
       );
     }
 
-    if (cvUploadId) {
+    if (dto.cvUploadId) {
       const upload = await this.prisma.upload.findUnique({
-        where: { id: cvUploadId },
+        where: { id: dto.cvUploadId },
       });
       this.assertDocument(
         upload,
         accountId,
-        'PROFILE_CV',
         PROFILE_CV_MIME_TYPES,
         PROFILE_CV_MAX_SIZE,
         'CV'
       );
     }
+
+    if (dto.diplomaUploadId) {
+      const upload = await this.prisma.upload.findUnique({
+        where: { id: dto.diplomaUploadId },
+      });
+      this.assertDocument(
+        upload,
+        accountId,
+        PROFILE_CREDENTIAL_MIME_TYPES,
+        PROFILE_CREDENTIAL_MAX_SIZE,
+        'diploma'
+      );
+    }
+
+    const certificationIds = dto.certificationUploadIds;
+    if (certificationIds && certificationIds.length > 0) {
+      const uploads = await this.prisma.upload.findMany({
+        where: { id: { in: certificationIds } },
+      });
+      const byId = new Map(uploads.map((upload) => [upload.id, upload]));
+      for (const id of certificationIds) {
+        this.assertDocument(
+          byId.get(id),
+          accountId,
+          PROFILE_CREDENTIAL_MIME_TYPES,
+          PROFILE_CREDENTIAL_MAX_SIZE,
+          'certification'
+        );
+      }
+    }
   }
 
+  /**
+   * The upload purpose is advisory once a file exists: a general upload
+   * can be attached to any profile slot as long as it belongs to the
+   * caller and satisfies that slot's MIME and size rules. This is the
+   * explicit product decision behind the "Define as…" menu.
+   */
   private assertDocument(
     upload:
       | {
           accountId: string;
-          purpose: string;
           mimeType: string;
           size: number;
         }
       | null
       | undefined,
     accountId: string,
-    purpose: 'PROFILE_PHOTO' | 'PROFILE_CV',
     allowedMimeTypes: readonly string[],
     maxSize: number,
     label: string
   ): void {
-    if (!upload) {
+    if (
+      !upload ||
+      upload.accountId !== accountId ||
+      !allowedMimeTypes.includes(upload.mimeType) ||
+      upload.size > maxSize
+    ) {
       throw new BadRequestException(`Invalid ${label} upload.`);
     }
+  }
 
-    const valid =
-      upload.accountId === accountId &&
-      upload.purpose === purpose &&
-      allowedMimeTypes.includes(upload.mimeType) &&
-      upload.size <= maxSize;
-
-    if (!valid) {
-      throw new BadRequestException(`Invalid ${label} upload.`);
+  private assertBannerColor(value?: string | null): void {
+    if (value === undefined || value === null) {
+      return;
+    }
+    if (!isAllowedBannerColor(value)) {
+      throw new BadRequestException(
+        'Choose a mid-tone, reasonably saturated banner colour.'
+      );
     }
   }
 
@@ -268,6 +374,13 @@ export class ProfileService {
         ? this.toDocument(profile.photoUpload)
         : undefined,
       cv: profile.cvUpload ? this.toDocument(profile.cvUpload) : undefined,
+      bannerColor: profile.bannerColor ?? undefined,
+      diplomaDocument: profile.diplomaUpload
+        ? this.toDocument(profile.diplomaUpload)
+        : undefined,
+      certifications: (profile.certifications ?? []).map((certification) =>
+        this.toDocument(certification.upload)
+      ),
       createdAt: profile.createdAt,
       updatedAt: profile.updatedAt,
     };

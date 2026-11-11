@@ -534,20 +534,28 @@ jobs:
                   message = message.replace("|", "\\|")[:300]
                   findings.append((result["ruleId"], uri, line, message))
 
-          lines = ["", "### SAST findings (Gate 5b)", ""]
+          lines = [""]
           if findings:
               lines.append(
-                  f"**{len(findings)} finding(s)** — also published as workflow "
-                  "annotations and in the Security tab."
+                  f"<details><summary>SAST findings (Gate 5b) — "
+                  f"{len(findings)} finding(s)</summary>"
+              )
+              lines.append("")
+              lines.append(
+                  "Also published as workflow annotations and in the Security tab."
               )
               lines.append("")
               lines.append("| Rule | File | Line | Message |")
               lines.append("|---|---|---|---|")
               for rule, uri, line, message in findings:
                   lines.append(f"| `{rule}` | `{uri}` | {line} | {message} |")
+              lines.append("")
+              lines.append("</details>")
               for rule, uri, line, message in findings:
                   print(f"::error file={uri},line={line},title={rule}::{message}")
           else:
+              lines.append("### SAST findings (Gate 5b)")
+              lines.append("")
               lines.append("No findings.")
           lines.append("")
 

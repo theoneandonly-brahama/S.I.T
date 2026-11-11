@@ -8,10 +8,12 @@ import {
   IsString,
   IsUrl,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -83,6 +85,9 @@ export class ProfileResponseDto {
   curriculum?: CurriculumEntryDto[];
   photo?: ProfileDocumentDto;
   cv?: ProfileDocumentDto;
+  bannerColor?: string;
+  diplomaDocument?: ProfileDocumentDto;
+  certifications: ProfileDocumentDto[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -94,9 +99,9 @@ export class ProfileResponseDto {
  * global ValidationPipe runs with `whitelist: true`: properties without
  * decorators are silently stripped from the payload.
  *
- * `photoUploadId` and `cvUploadId` are references to uploads already
- * owned by the account. The service re-checks ownership, purpose, MIME
- * type and size before attaching them.
+ * Document ids are references to uploads already owned by the account.
+ * The service re-checks ownership, MIME type and size before attaching
+ * them; the upload's advisory purpose is not part of the check.
  */
 export class CreateProfileDto {
   @IsString()
@@ -157,13 +162,33 @@ export class CreateProfileDto {
   @IsOptional()
   @IsUUID()
   cvUploadId?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  diplomaUploadId?: string | null;
+
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  certificationUploadIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^#[0-9a-fA-F]{6}$/, {
+    message: 'bannerColor must be a six-digit hex colour such as #c8102e.',
+  })
+  bannerColor?: string | null;
 }
 
 /**
  * UpdateProfileDto is the input for updating a profile. All fields are
  * optional so callers can patch individual fields. Sending
- * `photoUploadId: null` or `cvUploadId: null` detaches the corresponding
- * document; omitting the field leaves it unchanged.
+ * `photoUploadId: null`, `cvUploadId: null` or `diplomaUploadId: null`
+ * detaches the corresponding document; omitting the field leaves it
+ * unchanged. `certificationUploadIds` replaces the full certification
+ * set when provided.
  */
 export class UpdateProfileDto {
   @IsOptional()
@@ -226,4 +251,22 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsUUID()
   cvUploadId?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  diplomaUploadId?: string | null;
+
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  certificationUploadIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^#[0-9a-fA-F]{6}$/, {
+    message: 'bannerColor must be a six-digit hex colour such as #c8102e.',
+  })
+  bannerColor?: string | null;
 }

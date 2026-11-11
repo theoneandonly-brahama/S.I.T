@@ -24,33 +24,49 @@ vi.mock('../auth/session.ts', () => ({
 import { ApiError } from '../api/client.ts';
 import SettingsPage from './SettingsPage';
 
+function renderPage() {
+  render(
+    <MemoryRouter>
+      <SettingsPage />
+    </MemoryRouter>
+  );
+}
+
+function openPassword() {
+  fireEvent.click(screen.getByRole('button', { name: /^password/i }));
+}
+
+function openEmail() {
+  fireEvent.click(screen.getByRole('button', { name: /^email address/i }));
+}
+
 describe('SettingsPage', () => {
   beforeEach(() => {
     changePasswordMock.mockReset();
     changeEmailMock.mockReset();
   });
 
-  it('renders both forms with the signed-in email', () => {
-    render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>
-    );
+  it('starts collapsed and reveals each form on demand', () => {
+    renderPage();
 
     expect(screen.getByRole('heading', { name: /^security$/i })).toBeTruthy();
     expect(screen.getByText(/signed in as student@example\.com/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/^current password$/i)).toBeNull();
+    expect(screen.queryByLabelText(/^new email$/i)).toBeNull();
+
+    openPassword();
     expect(screen.getByLabelText(/^current password$/i)).toBeTruthy();
     expect(screen.getByLabelText(/^new password$/i)).toBeTruthy();
     expect(screen.getByLabelText(/^confirm new password$/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/^new email$/i)).toBeNull();
+
+    openEmail();
     expect(screen.getByLabelText(/^new email$/i)).toBeTruthy();
   });
 
   it('shows a client error when the new passwords do not match and does not call the API', async () => {
-    render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>
-    );
+    renderPage();
+    openPassword();
 
     fireEvent.change(screen.getByLabelText(/^current password$/i), {
       target: { value: 'OldPass1!' },
@@ -69,12 +85,8 @@ describe('SettingsPage', () => {
 
   it('submits the password change with the session token and confirms success', async () => {
     changePasswordMock.mockResolvedValueOnce({ success: true });
-
-    render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>
-    );
+    renderPage();
+    openPassword();
 
     fireEvent.change(screen.getByLabelText(/^current password$/i), {
       target: { value: 'OldPass1!' },
@@ -100,12 +112,8 @@ describe('SettingsPage', () => {
     changePasswordMock.mockRejectedValueOnce(
       new ApiError(401, ['Invalid credentials.'])
     );
-
-    render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>
-    );
+    renderPage();
+    openPassword();
 
     fireEvent.change(screen.getByLabelText(/^current password$/i), {
       target: { value: 'WrongPass9!' },
@@ -126,12 +134,8 @@ describe('SettingsPage', () => {
       message:
         'If an unverified account exists for this address, a confirmation token has been issued.',
     });
-
-    render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>
-    );
+    renderPage();
+    openEmail();
 
     fireEvent.change(screen.getByLabelText(/^new email$/i), {
       target: { value: 'new@example.com' },

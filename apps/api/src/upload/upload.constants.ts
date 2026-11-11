@@ -8,8 +8,14 @@
  */
 export const PROFILE_PHOTO_MIME_TYPES = ['image/jpeg', 'image/png'] as const;
 export const PROFILE_CV_MIME_TYPES = ['application/pdf'] as const;
+export const PROFILE_CREDENTIAL_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+] as const;
 export const PROFILE_PHOTO_MAX_SIZE = 2 * 1024 * 1024;
 export const PROFILE_CV_MAX_SIZE = 5 * 1024 * 1024;
+export const PROFILE_CREDENTIAL_MAX_SIZE = 5 * 1024 * 1024;
 
 /**
  * Checks that the first bytes of a file buffer match the magic-byte

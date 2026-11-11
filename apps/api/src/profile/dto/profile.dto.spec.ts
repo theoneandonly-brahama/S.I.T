@@ -84,6 +84,61 @@ describe('CreateProfileDto', () => {
 
     expect(errors.length).toBeGreaterThan(0);
   });
+
+  it('accepts a hex banner colour and credential upload ids', async () => {
+    const errors = await validatePayload(CreateProfileDto, {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      bannerColor: '#c8102e',
+      diplomaUploadId: '00000000-0000-4000-8000-000000000001',
+      certificationUploadIds: ['00000000-0000-4000-8000-000000000002'],
+    });
+
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects a malformed banner colour', async () => {
+    const errors = await validatePayload(CreateProfileDto, {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      bannerColor: 'red',
+    });
+
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects duplicate certification ids', async () => {
+    const errors = await validatePayload(CreateProfileDto, {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      certificationUploadIds: [
+        '00000000-0000-4000-8000-000000000002',
+        '00000000-0000-4000-8000-000000000002',
+      ],
+    });
+
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects a null certification list', async () => {
+    const errors = await validatePayload(CreateProfileDto, {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      certificationUploadIds: null,
+    });
+
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts null slot and banner values to clear them', async () => {
+    const errors = await validatePayload(UpdateProfileDto, {
+      photoUploadId: null,
+      diplomaUploadId: null,
+      bannerColor: null,
+    });
+
+    expect(errors).toHaveLength(0);
+  });
 });
 
 describe('UpdateProfileDto', () => {

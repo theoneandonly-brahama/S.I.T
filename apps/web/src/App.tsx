@@ -1,11 +1,10 @@
-import { Link, Route, Routes } from 'react-router';
+import { Link, Navigate, Route, Routes } from 'react-router';
 import HomePage from './pages/HomePage.tsx';
 import Layout from './components/Layout.tsx';
 import LoginPage from './pages/LoginPage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import RegisterPage from './pages/RegisterPage.tsx';
 import SettingsPage from './pages/SettingsPage.tsx';
-import UploadPage from './pages/UploadPage.tsx';
 import { buttonClass } from './components/ui/buttonClass.ts';
 
 export default function App() {
@@ -16,7 +15,7 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/uploads" element={<UploadPage />} />
+        <Route path="/uploads" element={<Navigate to="/profile" replace />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route
           path="*"

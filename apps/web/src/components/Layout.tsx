@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { logout } from '../api/client.ts';
 import type { StoredSession } from '../auth/session.ts';
 import { clearSession, loadSession } from '../auth/session.ts';
-import { CloseIcon, MenuIcon } from './ui/Icons.tsx';
+import { ChevronDownIcon, CloseIcon, MenuIcon } from './ui/Icons.tsx';
 import Logo from './ui/Logo.tsx';
 import ThemeToggle from './ui/ThemeToggle.tsx';
 import { buttonClass } from './ui/buttonClass.ts';
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Home', end: true },
-  { to: '/profile', label: 'Profile', end: false },
-  { to: '/uploads', label: 'Documents', end: false },
-  { to: '/settings', label: 'Settings', end: false },
+const PUBLIC_NAV_ITEMS = [{ to: '/', label: 'Home', end: true }];
+
+const ACCOUNT_NAV_ITEMS = [
+  { to: '/profile', label: 'Profile' },
+  { to: '/settings', label: 'Settings' },
 ];
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
@@ -24,16 +24,41 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
   ].join(' ');
 }
 
+function accountLinkClass({ isActive }: { isActive: boolean }): string {
+  return [
+    'flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+    isActive
+      ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200'
+      : 'text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-white/10 dark:hover:text-white',
+  ].join(' ');
+}
+
+const accountButtonClass =
+  'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-ink-600 transition-colors hover:bg-ink-100 hover:text-ink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-ink-300 dark:hover:bg-white/10 dark:hover:text-white';
+
+const accountPanelClass =
+  'absolute right-0 z-50 mt-2 w-60 rounded-2xl border border-ink-200/70 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-ink-900';
+
+const accountLogoutClass =
+  'flex w-full items-center rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-600 transition-colors hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-white/10 dark:hover:text-white';
+
 /**
  * Application shell: a floating navigation bar, the page outlet and a
  * quiet footer. Signed-in state is re-read on navigation, so pages can
  * simply call `navigate()` after login/logout.
+ *
+ * The navigation only exposes public links to anonymous visitors. Once
+ * signed in, account links and the theme switch live in a collapsible
+ * menu under the account email.
  */
 export default function Layout() {
   const [session, setSession] = useState<StoredSession | null>(() =>
     loadSession()
   );
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const desktopAccountRef = useRef<HTMLDivElement>(null);
+  const mobileAccountRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -44,7 +69,39 @@ export default function Layout() {
   useEffect(() => {
     refresh();
     setMenuOpen(false);
+    setAccountOpen(false);
   }, [location, refresh]);
+
+  // Close the account menu on an outside click or Escape. Both the
+  // desktop and mobile panels are checked so either trigger behaves.
+  useEffect(() => {
+    if (!accountOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node;
+      if (
+        !desktopAccountRef.current?.contains(target) &&
+        !mobileAccountRef.current?.contains(target)
+      ) {
+        setAccountOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setAccountOpen(false);
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [accountOpen]);
 
   async function handleLogout() {
     if (session) {
@@ -58,6 +115,7 @@ export default function Layout() {
       clearSession();
       refresh();
       setMenuOpen(false);
+      setAccountOpen(false);
       navigate('/');
     }
   }
@@ -65,14 +123,14 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen flex-col text-ink-900 transition-colors dark:text-ink-100">
       <header className="sticky top-0 z-40 px-4 pt-3 sm:px-6">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 rounded-2xl border border-ink-200/70 bg-white/85 px-4 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-ink-900/70">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 rounded-2xl border border-ink-200 bg-white/95 px-4 shadow-md backdrop-blur-md dark:border-white/10 dark:bg-ink-900/70 dark:shadow-sm">
           <Logo />
 
           <nav
             className="hidden items-center gap-1 md:flex"
             aria-label="Primary"
           >
-            {NAV_ITEMS.map((item) => (
+            {PUBLIC_NAV_ITEMS.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -83,64 +141,102 @@ export default function Layout() {
               </NavLink>
             ))}
 
-            <span
-              className="mx-1 h-6 w-px bg-ink-200 dark:bg-white/10"
-              aria-hidden="true"
-            />
-
             {session ? (
-              <>
-                <span className="hidden max-w-[170px] truncate text-xs text-ink-500 lg:inline dark:text-ink-300">
-                  {session.account.email}
-                </span>
+              <div className="relative" ref={desktopAccountRef}>
                 <button
                   type="button"
-                  onClick={handleLogout}
-                  className={buttonClass('secondary', 'sm')}
+                  onClick={() => setAccountOpen((open) => !open)}
+                  aria-expanded={accountOpen}
+                  aria-controls={
+                    accountOpen ? 'account-menu-desktop' : undefined
+                  }
+                  className={accountButtonClass}
                 >
-                  Log out
+                  <span className="max-w-[180px] truncate">
+                    {session.account.email}
+                  </span>
+                  <ChevronDownIcon
+                    className={`h-4 w-4 transition-transform ${accountOpen ? 'rotate-180' : ''}`}
+                  />
                 </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" className={buttonClass('ghost', 'sm')}>
-                  Sign in
-                </Link>
-                <Link to="/register" className={buttonClass('primary', 'sm')}>
-                  Get started
-                </Link>
-              </>
-            )}
 
-            <ThemeToggle />
+                {accountOpen && (
+                  <div
+                    id="account-menu-desktop"
+                    role="group"
+                    aria-label="Account"
+                    className={accountPanelClass}
+                  >
+                    {ACCOUNT_NAV_ITEMS.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        className={accountLinkClass}
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))}
+
+                    <div
+                      className="my-2 h-px bg-ink-200 dark:bg-white/10"
+                      aria-hidden="true"
+                    />
+
+                    <div className="flex items-center justify-between rounded-xl px-3 py-1.5">
+                      <span className="text-sm font-medium text-ink-700 dark:text-ink-200">
+                        Theme
+                      </span>
+                      <ThemeToggle />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className={accountLogoutClass}
+                    >
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link to="/register" className={buttonClass('primary', 'sm')}>
+                Get started
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-1.5 md:hidden">
-            <ThemeToggle />
-            <button
-              type="button"
-              onClick={() => setMenuOpen((open) => !open)}
-              aria-expanded={menuOpen}
-              aria-controls="mobile-nav"
-              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-ink-700 hover:bg-ink-100 dark:text-ink-200 dark:hover:bg-white/10"
-            >
-              {menuOpen ? (
-                <CloseIcon className="h-5 w-5" />
-              ) : (
-                <MenuIcon className="h-5 w-5" />
-              )}
-            </button>
+            {session ? (
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-expanded={menuOpen}
+                aria-controls={menuOpen ? 'mobile-nav' : undefined}
+                aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-ink-700 hover:bg-ink-100 dark:text-ink-200 dark:hover:bg-white/10"
+              >
+                {menuOpen ? (
+                  <CloseIcon className="h-5 w-5" />
+                ) : (
+                  <MenuIcon className="h-5 w-5" />
+                )}
+              </button>
+            ) : (
+              <Link to="/register" className={buttonClass('primary', 'sm')}>
+                Get started
+              </Link>
+            )}
           </div>
         </div>
 
-        {menuOpen && (
+        {session && menuOpen && (
           <div
             id="mobile-nav"
             className="mx-auto mt-2 max-w-6xl rounded-2xl border border-ink-200/70 bg-white p-3 shadow-lg md:hidden dark:border-white/10 dark:bg-ink-900"
           >
             <nav className="flex flex-col gap-1" aria-label="Mobile">
-              {NAV_ITEMS.map((item) => (
+              {PUBLIC_NAV_ITEMS.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -152,34 +248,59 @@ export default function Layout() {
               ))}
             </nav>
 
-            <div className="mt-3 border-t border-ink-200 pt-3 dark:border-white/10">
-              {session ? (
-                <div className="flex flex-col gap-2">
-                  <span className="truncate text-xs text-ink-500 dark:text-ink-300">
-                    Signed in as {session.account.email}
-                  </span>
+            <div
+              className="mt-3 border-t border-ink-200 pt-3 dark:border-white/10"
+              ref={mobileAccountRef}
+            >
+              <button
+                type="button"
+                onClick={() => setAccountOpen((open) => !open)}
+                aria-expanded={accountOpen}
+                aria-controls={accountOpen ? 'account-menu-mobile' : undefined}
+                className={`${accountButtonClass} w-full justify-between`}
+              >
+                <span className="truncate">{session.account.email}</span>
+                <ChevronDownIcon
+                  className={`h-4 w-4 transition-transform ${accountOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {accountOpen && (
+                <div
+                  id="account-menu-mobile"
+                  role="group"
+                  aria-label="Account"
+                  className="mt-2 rounded-xl border border-ink-200/70 p-2 dark:border-white/10"
+                >
+                  {ACCOUNT_NAV_ITEMS.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={accountLinkClass}
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+
+                  <div
+                    className="my-2 h-px bg-ink-200 dark:bg-white/10"
+                    aria-hidden="true"
+                  />
+
+                  <div className="flex items-center justify-between rounded-xl px-3 py-1.5">
+                    <span className="text-sm font-medium text-ink-700 dark:text-ink-200">
+                      Theme
+                    </span>
+                    <ThemeToggle />
+                  </div>
+
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className={buttonClass('secondary', 'sm', 'w-full')}
+                    className={accountLogoutClass}
                   >
                     Log out
                   </button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <Link
-                    to="/login"
-                    className={buttonClass('secondary', 'sm', 'w-full')}
-                  >
-                    Sign in
-                  </Link>
-                  <Link
-                    to="/register"
-                    className={buttonClass('primary', 'sm', 'w-full')}
-                  >
-                    Get started
-                  </Link>
                 </div>
               )}
             </div>

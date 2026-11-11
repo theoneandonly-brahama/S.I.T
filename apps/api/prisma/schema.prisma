@@ -25,64 +25,81 @@ enum UploadPurpose {
 }
 
 model Account {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  passwordHash  String
-  role          Role     @default(STUDENT)
-  isVerified    Boolean  @default(false)
-  isBanned      Boolean  @default(false)
-  bannedAt      DateTime?
-  bannedUntil   DateTime?
-  banReason     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(STUDENT)
+  isVerified   Boolean   @default(false)
+  isBanned     Boolean   @default(false)
+  bannedAt     DateTime?
+  bannedUntil  DateTime?
+  banReason    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  sessions      Session[]
-  confirmation  ConfirmationToken?
-  profile       Profile?
-  uploads       Upload[]
+  sessions     Session[]
+  confirmation ConfirmationToken?
+  profile      Profile?
+  uploads      Upload[]
 }
 
 model Session {
-  id                String   @id @default(uuid())
-  accountId         String
-  refreshTokenHash  String   @unique
-  expiresAt         DateTime
-  revokedAt         DateTime?
-  createdAt         DateTime @default(now())
+  id               String    @id @default(uuid())
+  accountId        String
+  refreshTokenHash String    @unique
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
 
-  account           Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
   @@index([accountId])
 }
 
 model ConfirmationToken {
-  id          String   @id @default(uuid())
-  accountId   String   @unique
-  tokenHash   String   @unique
-  expiresAt   DateTime
-  consumedAt  DateTime?
+  id         String    @id @default(uuid())
+  accountId  String    @unique
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
 
-  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 model Profile {
-  id            String   @id @default(uuid())
-  accountId     String   @unique
-  firstName     String
-  lastName      String
-  diploma       String?
-  university    String?
-  skills        String[] @default([])
-  links         String[] @default([])
-  curriculum    Json?
-  photoUploadId String?  @unique
-  cvUploadId    String?  @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(uuid())
+  accountId       String   @unique
+  firstName       String
+  lastName        String
+  diploma         String?
+  university      String?
+  skills          String[] @default([])
+  links           String[] @default([])
+  curriculum      Json?
+  bannerColor     String?
+  photoUploadId   String?  @unique
+  cvUploadId      String?  @unique
+  diplomaUploadId String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  photoUpload   Upload?  @relation("ProfilePhoto", fields: [photoUploadId], references: [id], onDelete: SetNull)
-  cvUpload      Upload?  @relation("ProfileCv", fields: [cvUploadId], references: [id], onDelete: SetNull)
+  account        Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  photoUpload    Upload?                @relation("ProfilePhoto", fields: [photoUploadId], references: [id], onDelete: SetNull)
+  cvUpload       Upload?                @relation("ProfileCv", fields: [cvUploadId], references: [id], onDelete: SetNull)
+  diplomaUpload  Upload?                @relation("ProfileDiploma", fields: [diplomaUploadId], references: [id], onDelete: SetNull)
+  certifications ProfileCertification[]
+}
+
+model ProfileCertification {
+  profileId String
+  uploadId  String
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  upload  Upload  @relation("ProfileCertifications", fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, uploadId])
+  @@index([uploadId])
 }
 
 model Upload {
@@ -95,9 +112,12 @@ model Upload {
   purpose      UploadPurpose @default(GENERAL)
   createdAt    DateTime      @default(now())
 
-  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  profilePhoto Profile?      @relation("ProfilePhoto")
-  profileCv    Profile?      @relation("ProfileCv")
+  account               Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  profilePhoto          Profile?               @relation("ProfilePhoto")
+  profileCv             Profile?               @relation("ProfileCv")
+  profileDiploma        Profile?               @relation("ProfileDiploma")
+  profileCertifications ProfileCertification[] @relation("ProfileCertifications")
+
   @@index([accountId])
   @@index([accountId, purpose])
 }

@@ -11,6 +11,11 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "incremental": true,
+    // Keep the incremental build info inside dist: Nest deletes the output
+    // directory on every `nest start --watch`. A build info file outside
+    // dist survives that delete and makes tsc skip emitting ("0 errors"
+    // with an empty dist), which breaks `pnpm dev`.
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
     "skipLibCheck": true,
     "strictNullChecks": true,
     "noImplicitAny": true,

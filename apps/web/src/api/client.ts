@@ -100,6 +100,36 @@ async function request<T>(
   return payload as T;
 }
 
+/**
+ * Fetches an upload as raw bytes. The download route is JWT-guarded, so
+ * the browser cannot use a plain `<img src>`; callers turn the returned
+ * Blob into an object URL and revoke it when the preview closes.
+ */
+async function requestBlob(path: string, token: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    let payload: unknown = null;
+    try {
+      payload = await response.json();
+    } catch {
+      // Non-JSON error body: fall back to the status code.
+    }
+    const body = payload as Partial<ApiErrorBody> | null;
+    const raw = body?.message;
+    const messages = Array.isArray(raw)
+      ? raw
+      : raw
+        ? [raw]
+        : [`Request failed with status ${response.status}.`];
+    throw new ApiError(response.status, messages);
+  }
+
+  return response.blob();
+}
+
 // ---------------------------------------------------------------------------
 // Endpoint wrappers — one per verified API route.
 // ---------------------------------------------------------------------------
@@ -183,6 +213,9 @@ export const deleteUpload = (token: string, storageKey: string) =>
     method: 'DELETE',
     token,
   });
+
+export const downloadUpload = (token: string, storageKey: string) =>
+  requestBlob(`/upload/${encodeURI(storageKey)}/download`, token);
 
 export const getSignedAccess = (token: string, storageKey: string) =>
   request<UploadSignedAccessResponse>(

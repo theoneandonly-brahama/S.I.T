@@ -80,7 +80,7 @@ const SNAPSHOT = [
     label: 'Documents',
     value: '2 of 3',
     icon: FileTextIcon,
-    tone: 'text-sunset-500',
+    tone: 'text-brand-600',
   },
   {
     label: 'Shortlist',
@@ -274,7 +274,7 @@ export default function HomePage() {
         <div className="relative overflow-hidden rounded-2xl bg-ink-900 px-6 py-12 text-center shadow-lg sm:px-12 md:py-16 dark:bg-ink-800">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(197,68,54,0.35),transparent)] blur-2xl"
+            className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(200,16,46,0.35),transparent)] blur-2xl"
           />
           <div className="relative mx-auto max-w-2xl">
             <h2 className="font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">

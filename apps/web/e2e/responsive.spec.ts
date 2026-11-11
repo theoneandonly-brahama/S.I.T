@@ -3,23 +3,20 @@ import { test, expect } from '@playwright/test';
 /**
  * Mobile-viewport smoke test (D-008: mobile viewport emulation).
  * Runs only in the `mobile` project (Pixel 7). Verifies the
- * responsive shell: hamburger navigation below the breakpoint and
- * that the home page renders without horizontal overflow.
+ * responsive shell: anonymous visitors see only Get started (no
+ * account links or hamburger), and the home page renders without
+ * horizontal overflow.
  */
-test('mobile: hamburger nav opens and home renders without overflow', async ({
+test('mobile: anonymous header offers Get started and home renders without overflow', async ({
   page,
 }) => {
   await page.goto('/');
 
-  const menuButton = page.getByRole('button', { name: /open menu/i });
-  await expect(menuButton).toBeVisible();
-
-  await menuButton.click();
-  const mobileNav = page.getByRole('navigation', { name: /mobile/i });
-  await expect(mobileNav).toBeVisible();
-  await expect(
-    mobileNav.getByRole('link', { name: /^profile$/i })
-  ).toBeVisible();
+  await expect(page.getByRole('link', { name: /get started/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /open menu/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /^profile$/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /^documents$/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /^settings$/i })).toHaveCount(0);
 
   const overflow = await page.evaluate(
     () =>

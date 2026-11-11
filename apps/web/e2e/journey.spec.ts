@@ -10,9 +10,9 @@ import AxeBuilder from '@axe-core/playwright';
  * playwright.config.ts webServer).
  *
  * Coverage: account journey (register→confirm→login→profile),
- * settings (password change + email re-verification gating), uploads
- * (purpose + magic-byte rejection), resend, axe on every page in
- * light + dark, and a mobile-viewport smoke test.
+ * settings (password change + email re-verification gating), document
+ * uploads inside the profile (purpose + magic-byte rejection), resend,
+ * axe on every page in light + dark, and a mobile-viewport smoke test.
  */
 
 const unique = Date.now().toString(36);
@@ -46,6 +46,14 @@ async function registerConfirmLogin(
   await page.waitForURL('**/profile');
 }
 
+/** Open the signed-in account dropdown (desktop navigation). */
+async function openAccountMenu(page: Page) {
+  await page
+    .locator('nav[aria-label="Primary"]')
+    .getByRole('button', { expanded: false })
+    .click();
+}
+
 test('register, confirm, sign in, and create a profile', async ({ page }) => {
   await registerConfirmLogin(page, `e2e_${unique}@sit.test`, 'Str0ngPass!23');
 
@@ -73,6 +81,7 @@ test('settings: change password, then change email and log back in only after re
   await expect(
     page.getByRole('heading', { name: /^security$/i })
   ).toBeVisible();
+  await page.getByRole('button', { name: /^password/i }).click();
 
   // Wrong current password → uniform error, password unchanged.
   await page.getByLabel(/^current password$/i).fill('WrongPass9!');
@@ -87,6 +96,7 @@ test('settings: change password, then change email and log back in only after re
   await expect(page.getByText(/password changed/i)).toBeVisible();
 
   // Old password no longer logs in; new one does.
+  await openAccountMenu(page);
   await page.getByRole('button', { name: /^log out$/i }).click();
   await page.goto('/login');
   await page.getByLabel(/^email$/i).fill(email);
@@ -102,12 +112,14 @@ test('settings: change password, then change email and log back in only after re
   // Email change: generic message, and the new address cannot sign in
   // until the confirmation token (delivered to the new inbox) is used.
   await page.goto('/settings');
+  await page.getByRole('button', { name: /^email address/i }).click();
   await page.getByLabel(/^new email$/i).fill(newEmail);
   await page.getByRole('button', { name: /^change email$/i }).click();
   await expect(
     page.getByText(/confirmation token has been issued/i)
   ).toBeVisible();
 
+  await openAccountMenu(page);
   await page.getByRole('button', { name: /^log out$/i }).click();
   await page.goto('/login');
   await page.getByLabel(/^email$/i).fill(newEmail);
@@ -122,10 +134,22 @@ test('uploads: purpose selection and magic-byte rejection in the browser', async
   const email = `uploads_${unique}@sit.test`;
   await registerConfirmLogin(page, email, 'Str0ngPass!23');
 
+  // Documents now live inside the profile; the old route redirects.
   await page.goto('/uploads');
+  await page.waitForURL('**/profile');
   await expect(
-    page.getByRole('heading', { name: /keep everything together/i })
+    page.getByRole('heading', { name: /your profile/i })
   ).toBeVisible();
+
+  // A fresh account starts with the profile form open; create the
+  // profile first so the … menu can offer "Define as…" actions.
+  await page.getByLabel(/^first name$/i).fill('E2E');
+  await page.getByLabel(/^last name$/i).fill('Student');
+  await page.getByRole('button', { name: /^create profile$/i }).click();
+  await expect(page.getByText(/profile saved/i)).toBeVisible();
+
+  // The upload form is collapsed until requested.
+  await page.getByRole('button', { name: /^upload a document$/i }).click();
 
   // Profile-photo purpose: JPEG accepted and listed with its purpose.
   await page.getByLabel(/^upload as$/i).selectOption('PROFILE_PHOTO');
@@ -137,6 +161,14 @@ test('uploads: purpose selection and magic-byte rejection in the browser', async
   await page.getByRole('button', { name: /upload document/i }).click();
   await expect(page.getByText(/document uploaded/i)).toBeVisible();
   await expect(page.getByText(/PROFILE_PHOTO/)).toBeVisible();
+
+  // The matching profile slot is selected automatically: the file's
+  // … menu now offers to remove it from the profile photo slot.
+  await page.getByLabel(/actions for me.jpg/i).click();
+  await expect(
+    page.getByRole('button', { name: /remove profile photo/i })
+  ).toBeVisible();
+  await page.getByLabel(/actions for me.jpg/i).click();
 
   // Declared image/png but PDF bytes → 400 from magic-byte validation.
   await page.locator('input[type="file"]').setInputFiles({
@@ -172,14 +204,7 @@ test('accessibility: no critical or serious violations on any page (light)', asy
 }) => {
   await registerConfirmLogin(page, `axe_${unique}@sit.test`, 'Str0ngPass!23');
 
-  for (const path of [
-    '/',
-    '/register',
-    '/login',
-    '/profile',
-    '/uploads',
-    '/settings',
-  ]) {
+  for (const path of ['/', '/register', '/login', '/profile', '/settings']) {
     await page.goto(path);
     const results = await new AxeBuilder({ page }).analyze();
     const blocking = results.violations.filter((v) =>
@@ -195,7 +220,17 @@ test('accessibility: no critical or serious violations on any page (light)', asy
 test('accessibility + theme: dark mode toggle applies and stays axe-clean', async ({
   page,
 }) => {
-  await page.goto('/');
+  await registerConfirmLogin(page, `theme_${unique}@sit.test`, 'Str0ngPass!23');
+
+  // The theme switch animates colours. Axe must inspect the final
+  // palette, not a mid-transition blend, so freeze transitions for this
+  // scan only.
+  await page.addStyleTag({
+    content:
+      '*, *::before, *::after { transition: none !important; animation: none !important; }',
+  });
+
+  await openAccountMenu(page);
   await page.getByRole('button', { name: /dark mode|light mode/i }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
@@ -205,6 +240,6 @@ test('accessibility + theme: dark mode toggle applies and stays axe-clean', asyn
   );
   expect(
     blocking.map((v) => `${v.id}: ${v.help}`),
-    'axe violations on / in dark mode'
+    'axe violations on /profile in dark mode'
   ).toEqual([]);
 });

@@ -5,6 +5,7 @@ import { loadSession } from '../auth/session.ts';
 import PageIllustration from '../components/PageIllustration.tsx';
 import Alert, { type AlertTone } from '../components/ui/Alert.tsx';
 import Button from '../components/ui/Button.tsx';
+import CollapsibleSection from '../components/ui/CollapsibleSection.tsx';
 import Field from '../components/ui/Field.tsx';
 
 /**
@@ -20,7 +21,9 @@ import Field from '../components/ui/Field.tsx';
  * is delivered to the NEW address. The user must confirm it before
  * signing in again — the page says so explicitly.
  *
- * Unauthenticated visits are redirected to /login.
+ * Each form lives in a collapsed disclosure so the page is not a wall
+ * of always-open inputs. Unauthenticated visits are redirected to
+ * /login.
  */
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -143,13 +146,13 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <div className="card p-6 sm:p-8">
-          <h2 className="text-lg font-semibold text-ink-900 dark:text-white">
-            Change password
-          </h2>
+        <CollapsibleSection
+          title="Password"
+          description="Change the password you use to sign in."
+        >
           <form
             onSubmit={submitPassword}
-            className="mt-4 space-y-4"
+            className="space-y-4"
             aria-busy={passwordBusy}
           >
             <Alert messages={passwordMessages} tone={passwordTone} />
@@ -190,13 +193,14 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
-        </div>
+        </CollapsibleSection>
 
-        <div className="card mt-6 p-6 sm:p-8">
-          <h2 className="text-lg font-semibold text-ink-900 dark:text-white">
-            Change email
-          </h2>
-          <p className="mt-2 text-sm text-ink-500 dark:text-ink-300">
+        <CollapsibleSection
+          title="Email address"
+          description="Move your account to a new address; re-verification is required."
+          className="mt-6"
+        >
+          <p className="text-sm text-ink-500 dark:text-ink-300">
             Your new address must confirm before you can sign in again, and all
             other sessions are signed out.
           </p>
@@ -222,7 +226,7 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
-        </div>
+        </CollapsibleSection>
       </section>
     </div>
   );

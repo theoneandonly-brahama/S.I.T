@@ -17,6 +17,9 @@ export default defineConfig({
         '**/*.integration.spec.ts',
         '**/.stryker-tmp/**',
         'apps/api/src/main.ts',
+        // Bootstrap-only side effect: reads the repository .env at import
+        // time. Like main.ts it has no unit-testable behaviour.
+        'apps/api/src/common/load-env.ts',
         'apps/api/src/**/dto/*.ts',
       ],
       thresholds: {

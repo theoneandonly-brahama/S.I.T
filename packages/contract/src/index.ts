@@ -134,7 +134,7 @@ export interface CurriculumEntry {
   endYear?: number;
 }
 
-/** Metadata of an upload attached to a profile photo or CV slot. */
+/** Metadata of an upload attached to a profile document slot. */
 export interface ProfileDocument {
   id: string;
   originalName: string;
@@ -157,6 +157,12 @@ export interface ProfileResponse {
   curriculum?: CurriculumEntry[];
   photo?: ProfileDocument;
   cv?: ProfileDocument;
+  /** Custom cover colour, or undefined when the brand gradient is used. */
+  bannerColor?: string;
+  /** Attached diploma file; separate from the `diploma` display label. */
+  diplomaDocument?: ProfileDocument;
+  /** Attached certification files, in attachment order. */
+  certifications: ProfileDocument[];
   createdAt: string;
   updatedAt: string;
 }
@@ -172,6 +178,9 @@ export interface CreateProfileRequest {
   curriculum?: CurriculumEntry[];
   photoUploadId?: string | null;
   cvUploadId?: string | null;
+  diplomaUploadId?: string | null;
+  certificationUploadIds?: string[];
+  bannerColor?: string | null;
 }
 
 /** PATCH /profile — all fields optional (patch semantics). */
